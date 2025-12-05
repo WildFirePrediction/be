@@ -25,8 +25,9 @@ public class RouteController {
     public ApiResponse<RouteResponse> getPedestrianRoute(
             @RequestBody RouteRequest request) {
 
-        log.info("경로 조회 요청: {} → {}",
-                request.getStartName(), request.getEndName());
+        log.info("경로 조회 요청: {}, {} → {}, {}",
+                request.getStartLat(), request.getStartLon(),
+                request.getEndLat(), request.getEndLon());
 
         RouteResponse response = tmapRouteService.getTmapRoute(request);
 

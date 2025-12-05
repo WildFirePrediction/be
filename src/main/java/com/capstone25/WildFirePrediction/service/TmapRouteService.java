@@ -45,8 +45,8 @@ public class TmapRouteService {
                 .startY(request.getStartLat())
                 .endX(request.getEndLon())
                 .endY(request.getEndLat())
-                .startName(request.getStartName())
-                .endName(request.getEndName())
+                .startName("현재 위치") // 기본값
+                .endName("대피소")     // 기본값
                 .reqCoordType("WGS84GEO")
                 .resCoordType("WGS84GEO")
                 .searchOption(0) // 추천 경로
