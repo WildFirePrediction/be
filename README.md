@@ -1,2 +1,2 @@
-# be
+# WildFirePrediction - BE
 Backend Repo - SpringBoot
