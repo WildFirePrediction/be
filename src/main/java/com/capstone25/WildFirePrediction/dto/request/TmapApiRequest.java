@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 @Builder
-public class TmapRouteRequest {
+public class TmapApiRequest {
     private Double startX;       // 출발지 경도
     private Double startY;       // 출발지 위도
     private Double endX;         // 목적지 경도

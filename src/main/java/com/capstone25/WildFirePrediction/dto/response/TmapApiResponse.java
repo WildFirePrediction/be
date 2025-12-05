@@ -6,7 +6,7 @@ import lombok.Data;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class TmapRouteResponse {
+public class TmapApiResponse {
     private String type; // "FeatureCollection"
     private List<Feature> features;
 

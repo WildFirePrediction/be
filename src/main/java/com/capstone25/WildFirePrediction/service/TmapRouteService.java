@@ -1,9 +1,9 @@
 package com.capstone25.WildFirePrediction.service;
 
 import com.capstone25.WildFirePrediction.dto.request.RouteRequest;
-import com.capstone25.WildFirePrediction.dto.request.TmapRouteRequest;
+import com.capstone25.WildFirePrediction.dto.request.TmapApiRequest;
 import com.capstone25.WildFirePrediction.dto.response.RouteResponse;
-import com.capstone25.WildFirePrediction.dto.response.TmapRouteResponse;
+import com.capstone25.WildFirePrediction.dto.response.TmapApiResponse;
 import com.capstone25.WildFirePrediction.global.code.status.ErrorStatus;
 import com.capstone25.WildFirePrediction.global.exception.handler.ExceptionHandler;
 import java.net.URLEncoder;
@@ -40,7 +40,7 @@ public class TmapRouteService {
     // TMAP API 호출해서 보행자 경로 받아오기
     public RouteResponse getTmapRoute(RouteRequest request) {
         // 1. TMAP API 요청 생성
-        TmapRouteRequest tmapRequest = TmapRouteRequest.builder()
+        TmapApiRequest tmapRequest = TmapApiRequest.builder()
                 .startX(request.getStartLon())
                 .startY(request.getStartLat())
                 .endX(request.getEndLon())
@@ -53,14 +53,14 @@ public class TmapRouteService {
                 .build();
 
         // 2. TMAP API 호출
-        TmapRouteResponse tmapResponse = callTmapApi(tmapRequest);
+        TmapApiResponse tmapResponse = callTmapApi(tmapRequest);
 
         // 3. 응답 파싱
         return parseRouteResponse(tmapResponse);
     }
 
     // TMAP API 실제 호출
-    private TmapRouteResponse callTmapApi(TmapRouteRequest request) {
+    private TmapApiResponse callTmapApi(TmapApiRequest request) {
         try {
             // Header 설정
             HttpHeaders headers = new HttpHeaders();
@@ -87,11 +87,11 @@ public class TmapRouteService {
             HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(body, headers);
 
             // API 호출
-            ResponseEntity<TmapRouteResponse> response = restTemplate.exchange(
+            ResponseEntity<TmapApiResponse> response = restTemplate.exchange(
                     TMAP_API_URL,
                     HttpMethod.POST,
                     entity,
-                    TmapRouteResponse.class
+                    TmapApiResponse.class
             );
 
             if (response.getStatusCode() != HttpStatus.OK || response.getBody() == null) {
@@ -106,13 +106,13 @@ public class TmapRouteService {
     }
 
     // TMAP 응답 파싱
-    private RouteResponse parseRouteResponse(TmapRouteResponse tmapResponse) {
+    private RouteResponse parseRouteResponse(TmapApiResponse tmapResponse) {
         Integer totalDistance = null;
         Integer totalTime = null;
         List<List<Double>> path = new ArrayList<>();
 
-        for(TmapRouteResponse.Feature feature : tmapResponse.getFeatures()) {
-            TmapRouteResponse.Properties props = feature.getProperties();
+        for(TmapApiResponse.Feature feature : tmapResponse.getFeatures()) {
+            TmapApiResponse.Properties props = feature.getProperties();
 
             // 총 거리/시간 추출 (SP = 출발지에서만)
             if ("SP".equals(props.getPointType())) {
