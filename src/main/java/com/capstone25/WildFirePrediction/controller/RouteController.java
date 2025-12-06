@@ -24,8 +24,9 @@ public class RouteController {
     // 보행자 경로 조회
     @PostMapping("")
     @Operation(summary = "보행자 경로 조회",
-            description = "출발지와 목적지 좌표를 받아 보행자 경로를 조회합니다.\n"
-                    + "request는 위도/경도 순, response는 경도/위도 순입니다. 혼동 주의하세요.")
+            description = "출발지와 목적지 좌표를 받아 보행자 경로를 조회합니다. <br>"
+                    + "request는 위도/경도 순, response는 경도/위도 순입니다. 혼동 주의하세요. <br>"
+                    + "response의 좌표를 순서대로 이어 그리면 경로가 됩니다.")
     public ApiResponse<RouteResponse> getPedestrianRoute(
             @RequestBody RouteRequest request) {
 
