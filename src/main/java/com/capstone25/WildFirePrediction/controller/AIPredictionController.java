@@ -3,6 +3,7 @@ package com.capstone25.WildFirePrediction.controller;
 import com.capstone25.WildFirePrediction.dto.request.AIPredictionRequest.FirePredictionRequestDto;
 import com.capstone25.WildFirePrediction.dto.response.AIPredictionResponse;
 import com.capstone25.WildFirePrediction.service.AIPredictionService;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +23,9 @@ public class AIPredictionController {
     private final AIPredictionService aiPredictionService;
 
     // AI 예측 데이터 수신 엔드포인트
-    @PostMapping("/fire")
+    @PostMapping("")
+    @Operation(summary = "AI 산불 확산 예측 데이터 수신",
+            description = "AI 서버용 엔드포인트입니다. 스웨거에서 사용 금지")
     public ResponseEntity<AIPredictionResponse> receivePrediction(
             @Valid @RequestBody FirePredictionRequestDto requestDto,
             BindingResult bindingResult) {
