@@ -23,7 +23,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "ai_predicted_cell",
     indexes = {
         @Index(name = "idx_fire_id", columnList = "fire_id"),
-        @Index(name = "idex_lat_lon", columnList = "latitude, longitude")
+        @Index(name = "idx_lat_lon", columnList = "latitude, longitude")
     })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
