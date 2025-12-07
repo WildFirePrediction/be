@@ -146,13 +146,9 @@ public class AIPredictionService {
         );
 
         // 5. DB 저장
-        try {
-            fireRepository.save(fire);
-            log.info("화재 종료 처리 완료 - fireId: {}, endReason: {}",
-                    fireId, requestDto.getEndReason());
-        } catch (Exception e) {
-            log.error("화재 종료 DB 저장 실패 - fireId: {}, error: {}", fireId, e.getMessage(), e);
-        }
+        fireRepository.save(fire);
+        log.info("화재 종료 처리 완료 - fireId: {}, endReason: {}",
+                fireId, requestDto.getEndReason());
     }
 
     // 예측 데이터 검증
