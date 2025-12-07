@@ -86,7 +86,7 @@ public class AIPredictionRequest {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    public class FireLocationDto {
+    public static class FireLocationDto {
         // 위도 (33 ~ 39)
         @NotNull(message = "위도는 필수입니다")
         @Min(value = 33, message = "위도는 33 이상이어야 합니다")
@@ -106,7 +106,7 @@ public class AIPredictionRequest {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    public class PredictionDto {
+    public static class PredictionDto {
 
         // 타임스텝 정보 (1~5)
         @NotNull(message = "타임스텝은 필수입니다")
@@ -131,7 +131,7 @@ public class AIPredictionRequest {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    public class PredictedCellDto {
+    public static class PredictedCellDto {
         // 예측된 셀의 위도
         @NotNull(message = "예측된 셀의 위도는 필수입니다")
         @Min(value = 33, message = "예측된 셀의 위도는 33 이상이어야 합니다")
