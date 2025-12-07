@@ -54,7 +54,6 @@ public class AIPredictionService {
         String fireId = requestDto.getFireId();
 
         // 1. 데이터 검증
-        // 1. 데이터 검증 (실패 시 로그만 남기고 리턴)
         if (!validatePredictionData(requestDto)) {
             log.error("데이터 검증 실패 - fireId: {}, 처리 중단", fireId);
             return;
@@ -74,7 +73,12 @@ public class AIPredictionService {
             } else {
                 log.info("진행중인 화재 최신 데이터로 업데이트 - fireId: {}", fireId);
             }
-            fire.getPredictedCells().clear();   // 기존 셀 데이터 초기화 (DB도 삭제)
+
+            // 기존 셀 데이터 초기화 (DB도 삭제)
+            int deletedCount = cellRepository.deleteAllByFireId(fire.getId());
+            fire.getPredictedCells().clear();
+            log.info("기존 예측 셀 벌크 삭제 완료 - fireId: {}, 삭제된 셀 개수: {}",
+                    fireId, deletedCount);
 
             // 화재 정보 업데이트
             fire.updatePredictionData(
@@ -129,8 +133,10 @@ public class AIPredictionService {
         }
 
         // 3. 예측 셀 전체 삭제 (DB 용량 절약)
+        int deletedCount = cellRepository.deleteAllByFireId(fire.getId());
         fire.getPredictedCells().clear();
-        log.info("화재 종료: 예측 셀 삭제 완료 - fireId: {}", fireId);
+        log.info("화재 종료: 예측 셀 삭제 완료 - fireId: {}, 삭제된 셀 개수: {}",
+                fireId, deletedCount);
 
         // 4. 화재 상태를 '종료'로 업데이트 (Fire 정보는 유지)
         fire.endFire(

@@ -3,6 +3,7 @@ package com.capstone25.WildFirePrediction.repository;
 import com.capstone25.WildFirePrediction.domain.AIPredictedCell;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -13,6 +14,16 @@ public interface AIPredictedCellRepository extends JpaRepository<AIPredictedCell
     // 특정 화재의 모든 예측 셀 조회
     @Query("SELECT c FROM AIPredictedCell c WHERE c.fire.id = :fireId")
     List<AIPredictedCell> findByFireId(@Param("fireId") Long fireId);
+
+    // 특정 화재의 모든 예측 셀 삭제
+    @Modifying
+    @Query("DELETE FROM AIPredictedCell c WHERE c.fire.id = :fireId")
+    int deleteAllByFireId(@Param("fireId") Long fireId);
+
+    // 여러 화재의 예측 셀 일괄 삭제
+    @Modifying
+    @Query("DELETE FROM AIPredictedCell c WHERE c.fire.id IN :fireIds")
+    int deleteAllByFireIds(@Param("fireIds") List<Long> fireIds);
 
     // 진행중인 모든 화재의 예측 셀 조회
     @Query("SELECT c FROM AIPredictedCell c " +
