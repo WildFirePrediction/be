@@ -85,6 +85,31 @@ public class AIPredictionFire extends BaseEntity {
     private List<AIPredictedCell> predictedCells = new ArrayList<>();
 
 
+    // 화재 예측 데이터 업데이트 메소드
+    public void updatePredictionData(
+            String eventType,
+            Double fireLatitude,
+            Double fireLongitude,
+            LocalDateTime fireTimestamp,
+            LocalDateTime inferenceTimestamp,
+            String model) {
+
+        this.eventType = eventType;
+        this.fireLatitude = fireLatitude;
+        this.fireLongitude = fireLongitude;
+        this.fireTimestamp = fireTimestamp;
+        this.inferenceTimestamp = inferenceTimestamp;
+        this.model = model;
+    }
+
+    // 재발화
+    public void reactivateFire() {
+        this.status = FireStatus.PROGRESS;
+        this.endReason = null;
+        this.endedTimestamp = null;
+        this.completionTimestamp = null;
+    }
+
     // 화재 상태 'END'로 변경
     public void endFire(String endReason, LocalDateTime endedTimestamp, LocalDateTime completionTimestamp) {
         this.status = FireStatus.END;
