@@ -2,12 +2,13 @@ package com.capstone25.WildFirePrediction.repository;
 
 import com.capstone25.WildFirePrediction.domain.AIPredictedCell;
 import java.util.List;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface AIPredictedCellRepository {
+public interface AIPredictedCellRepository extends JpaRepository<AIPredictedCell, Long> {
 
     // 특정 화재의 모든 예측 셀 조회
     @Query("SELECT c FROM AIPredictedCell c WHERE c.fire.id = :fireId")

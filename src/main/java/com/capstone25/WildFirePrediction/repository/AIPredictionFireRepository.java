@@ -4,11 +4,12 @@ import com.capstone25.WildFirePrediction.domain.AIPredictionFire;
 import com.capstone25.WildFirePrediction.domain.enums.FireStatus;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface AIPredictionFireRepository {
+public interface AIPredictionFireRepository extends JpaRepository<AIPredictionFire, Long> {
 
     // 산림청 화재 ID로 화재 정보 조회 (중복 요청 체크 시 사용)
     Optional<AIPredictionFire> findByFireId(String fireId);
