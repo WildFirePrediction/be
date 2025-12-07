@@ -12,7 +12,6 @@ import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -49,7 +48,7 @@ public class AIPredictedCell extends BaseEntity {
 
     // 해당 타임스텝의 예상 시각
     @Column(nullable = false)
-    private LocalDateTime predictedTimestamp;
+    private String predictedTimestamp;
 
     // 화재 확산 확률 (0.0 ~ 1.0)
     @Column(nullable = false)

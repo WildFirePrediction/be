@@ -8,7 +8,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
-import java.time.LocalDateTime;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -43,12 +42,12 @@ public class AIPredictionRequest {
         // 화재 발생 시각
         @NotNull(message = "화재 발생 시각은 필수입니다.")
         @JsonProperty("fire_timestamp")
-        private LocalDateTime fireTimestamp;
+        private String fireTimestamp;
 
         // ===== event_type="0" 전용 필드 =====
         // AI 추론 완료 시각
         @JsonProperty("inference_timestamp")
-        private LocalDateTime inferenceTimestamp;
+        private String inferenceTimestamp;
 
         // 사용된 AI 모델명
         @JsonProperty("model")
@@ -63,11 +62,11 @@ public class AIPredictionRequest {
         // ===== event_type="1" 전용 필드 =====
         // 화재 종료 감지 시각
         @JsonProperty("ended_timestamp")
-        private LocalDateTime endedTimestamp;
+        private String endedTimestamp;
 
         // 산림처 공식 진화 완료 시각
         @JsonProperty("completion_timestamp")
-        private LocalDateTime completionTimestamp;
+        private String completionTimestamp;
 
         // 종료 이유
         @JsonProperty("end_reason")
@@ -118,7 +117,7 @@ public class AIPredictionRequest {
         // 해당 타임스텝의 예상 시각
         @NotNull(message = "예상 시각은 필수입니다")
         @JsonProperty("timestamp")
-        private LocalDateTime timestamp;
+        private String timestamp;
 
         // 예측된 셀 리스트
         @NotEmpty(message = "예측 셀은 최소 1개 이상이어야 합니다")
