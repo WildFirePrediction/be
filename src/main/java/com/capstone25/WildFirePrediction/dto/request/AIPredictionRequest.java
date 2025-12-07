@@ -148,8 +148,6 @@ public class AIPredictionRequest {
 
         // 화재 확산 확률 (0.0 ~ 1.0)
         @NotNull(message = "화재 확산 확률은 필수입니다")
-        @Min(value = 0, message = "화재 확산 확률은 0.0 이상이어야 합니다")
-        @Max(value = 1, message = "화재 확산 확률은 1.0 이하이어야 합니다")
         @JsonProperty("probability")
         private Double probability;
     }
