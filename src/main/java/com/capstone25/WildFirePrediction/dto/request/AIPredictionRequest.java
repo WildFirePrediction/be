@@ -1,5 +1,6 @@
 package com.capstone25.WildFirePrediction.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -43,11 +44,13 @@ public class AIPredictionRequest {
         // 화재 발생 시각
         @NotNull(message = "화재 발생 시각은 필수입니다.")
         @JsonProperty("fire_timestamp")
+        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Seoul")
         private LocalDateTime fireTimestamp;
 
         // ===== event_type="0" 전용 필드 =====
         // AI 추론 완료 시각
         @JsonProperty("inference_timestamp")
+        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Seoul")
         private LocalDateTime inferenceTimestamp;
 
         // 사용된 AI 모델명
@@ -63,10 +66,12 @@ public class AIPredictionRequest {
         // ===== event_type="1" 전용 필드 =====
         // 화재 종료 감지 시각
         @JsonProperty("ended_timestamp")
+        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Seoul")
         private LocalDateTime endedTimestamp;
 
         // 산림처 공식 진화 완료 시각
         @JsonProperty("completion_timestamp")
+        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Seoul")
         private LocalDateTime completionTimestamp;
 
         // 종료 이유
@@ -118,6 +123,7 @@ public class AIPredictionRequest {
         // 해당 타임스텝의 예상 시각
         @NotNull(message = "예상 시각은 필수입니다")
         @JsonProperty("timestamp")
+        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Seoul")
         private LocalDateTime timestamp;
 
         // 예측된 셀 리스트
