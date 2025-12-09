@@ -14,9 +14,9 @@ public class EmergencyMessageApiService {
     private final WebClient safetyDataWebClient;
     private final SafetyDataProperties safetyDataProperties;
 
-    // (임시) 재난문자 API 원본 응답 확인 (String)
+    // (임시) 기상특보 API 원본 응답 확인 (String)
     public void testDisasterMessageApi() {
-        SafetyDataProperties.ApiConfig config = safetyDataProperties.getApis().get("emergency-message");
+        SafetyDataProperties.ApiConfig config = safetyDataProperties.getApis().get("weather-warning");
 
         if (config == null) {
             log.error("disaster-message API 설정 없음");
@@ -24,7 +24,7 @@ public class EmergencyMessageApiService {
         }
 
         try {
-            log.info("=== 재난문자 API 호출 시작 ===");
+            log.info("=== 기상특보 API 호출 시작 ===");
 
             String rawResponse = safetyDataWebClient.get()
                     .uri(uriBuilder -> uriBuilder
@@ -38,12 +38,12 @@ public class EmergencyMessageApiService {
                     .bodyToMono(String.class)
                     .block();
 
-            log.info("=== 재난문자 API 원본 응답 ===");
+            log.info("=== 기상특보 API 원본 응답 ===");
             log.info(rawResponse);
             log.info("=== 응답 길이: {} ===", rawResponse != null ? rawResponse.length() : 0);
 
         } catch (Exception e) {
-            log.error("재난문자 API 호출 실패", e);
+            log.error("기상특보 API 호출 실패", e);
         }
     }
 }
