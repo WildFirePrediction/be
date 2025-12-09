@@ -1,6 +1,7 @@
 package com.capstone25.WildFirePrediction.service;
 
 import com.capstone25.WildFirePrediction.dto.BoundingBox;
+import com.capstone25.WildFirePrediction.dto.projection.ShelterProjection;
 import com.capstone25.WildFirePrediction.dto.response.ShelterResponse;
 import com.capstone25.WildFirePrediction.repository.ShelterRepository;
 import java.util.ArrayList;
@@ -29,14 +30,16 @@ public class ShelterQueryService {
             BoundingBox bbox = calculateBoundingBox(lat, lon, radiusKm);
 
             // 2. 하이브리드 쿼리 실행 (네모박스 + Haversine)
-            List<Object[]> results = shelterRepository.findNearbySheltersHybrid(
+            List<ShelterProjection> projections = shelterRepository.findNearbyShelters(
                     lat, lon, radiusKm,
                     bbox.getMinLat(), bbox.getMaxLat(),
                     bbox.getMinLon(), bbox.getMaxLon()
             );
 
-            if (!results.isEmpty()) {
-                List<ShelterResponse> shelters = convertToResponse(results);
+            if (!projections.isEmpty()) {
+                List<ShelterResponse> shelters = projections.stream()
+                        .map(this::projectionToResponse)
+                        .toList();
                 log.info("{}km 반경 내 {}개 대피소 반환 (네모박스 필터링 적용)",
                         radiusKm, shelters.size());
                 return shelters;
@@ -64,18 +67,15 @@ public class ShelterQueryService {
                 .build();
     }
 
-    // Object[] -> ShelterResponse 변환
-    private List<ShelterResponse> convertToResponse(List<Object[]> results) {
-        return results.stream()
-                .map(row -> ShelterResponse.builder()
-                        .facilityName((String) row[1])      // facility_name
-                        .roadAddress((String) row[2])       // road_address
-                        .latitude((Double) row[3])          // latitude
-                        .longitude((Double) row[4])        // longitude
-                        .shelterTypeName((String) row[5])   // shelter_type_name
-                        .distanceKm((Double) row[6])        // distance_km
-                        .build()
-                )
-                .toList();
+    // Projection → Response 변환
+    private ShelterResponse projectionToResponse(ShelterProjection projection) {
+        return ShelterResponse.builder()
+                .facilityName(projection.getFacilityName())
+                .roadAddress(projection.getRoadAddress())
+                .latitude(projection.getLatitude())
+                .longitude(projection.getLongitude())
+                .shelterTypeName(projection.getShelterTypeName())
+                .distanceKm(projection.getDistanceKm())
+                .build();
     }
 }
