@@ -16,7 +16,7 @@ public class EmergencyMessageApiService {
 
     // (임시) 재난문자 API 원본 응답 확인 (String)
     public void testDisasterMessageApi() {
-        SafetyDataProperties.ApiConfig config = safetyDataProperties.getApis().get("disaster-message");
+        SafetyDataProperties.ApiConfig config = safetyDataProperties.getApis().get("emergency-message");
 
         if (config == null) {
             log.error("disaster-message API 설정 없음");
