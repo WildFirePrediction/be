@@ -17,13 +17,16 @@ public class ShelterQueryService {
 
     private final ShelterRepository shelterRepository;
 
+    // 검색 반경 단계 (km)
+    private static final int[] SEARCH_RADII_KM = {3, 5, 7, 10};
+
+    private static final double KM_PER_DEGREE = 111.0;  // 1도 = 111km
+
     // 현재 위치 기준 동적 반경 검색 (3 -> 5 -> 7 -> 10km)
     public List<ShelterResponse> findNearbyShelters(double lat, double lon) {
         log.info("대피소 검색 시작 - 위치: ({}, {})", lat, lon);
 
-        int[] radii = {3, 5, 7, 10};    // 동적 반경: 3km → 5km → 7km → 10km
-
-        for (int radiusKm : radii) {
+        for (int radiusKm : SEARCH_RADII_KM) {
             log.debug("반경 {}km 검색 중...", radiusKm);
 
             // 1. 네모박스 계산 (인덱스 활용)
@@ -52,7 +55,6 @@ public class ShelterQueryService {
 
     // 네모박스 계산 (1km 당 약 0.009도)
     private BoundingBox calculateBoundingBox(double lat, double lon, double radiusKm) {
-        final double KM_PER_DEGREE = 111.0;  // 1도 = 111km
         double deltaDegree = radiusKm / KM_PER_DEGREE;
 
         double minLat = lat - deltaDegree;
