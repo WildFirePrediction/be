@@ -13,7 +13,4 @@ public interface ShelterRepository extends JpaRepository<Shelter, Long> {
 
     // 관리일련번호 존재 여부 확인 (중복 방지)
     boolean existsByManagementNumber(String managementNumber);
-
-    // 대피소 구분 코드로 대피소 조회
-    Optional<Shelter> findByShelterTypeCode(String shelterTypeCode);
 }
