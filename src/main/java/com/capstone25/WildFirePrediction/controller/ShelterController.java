@@ -1,12 +1,11 @@
 package com.capstone25.WildFirePrediction.controller;
 
-import com.capstone25.WildFirePrediction.dto.response.ShelterResponse;
+import com.capstone25.WildFirePrediction.dto.response.NearbyShelterResult;
 import com.capstone25.WildFirePrediction.global.ApiResponse;
 import com.capstone25.WildFirePrediction.service.ShelterQueryService;
 import com.capstone25.WildFirePrediction.service.ShelterService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -43,13 +42,15 @@ public class ShelterController {
             description = "현재 위치 기준 3→5→7→10km 순차 검색. <br>"
                     + "가장 가까운 반경에서 결과 반환 (최대 100개)"
     )
-    public ApiResponse<List<ShelterResponse>> findNearbyShelters(
+    public ApiResponse<NearbyShelterResult> findNearbyShelters(
             @Parameter(description = "현재 위도", example = "37.5665") @RequestParam double lat,
-            @Parameter(description = "현재 경도", example = "126.9780") @RequestParam double lon
+            @Parameter(description = "현재 경도", example = "126.9780") @RequestParam double lon,
+            @Parameter(description = "페이지 번호 (0부터)", example = "0") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지당 개수", example = "10") @RequestParam(defaultValue = "10") int size
     ) {
         log.info("대피소 검색 요청 - 위치: ({}, {})", lat, lon);
 
-        List<ShelterResponse> shelters = shelterQueryService.findNearbyShelters(lat, lon);
+        NearbyShelterResult shelters = shelterQueryService.findNearbyShelters(lat, lon, page, size);
         return ApiResponse.onSuccess(shelters);
     }
 }
