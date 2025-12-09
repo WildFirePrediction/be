@@ -5,7 +5,6 @@ import com.capstone25.WildFirePrediction.dto.response.ShelterApiResponse;
 import com.capstone25.WildFirePrediction.global.code.status.ErrorStatus;
 import com.capstone25.WildFirePrediction.global.exception.handler.ExceptionHandler;
 import io.netty.handler.timeout.ReadTimeoutException;
-import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -63,7 +62,6 @@ public class ShelterApiService {
                                         return new ExceptionHandler(ErrorStatus.SHELTER_API_CALL_FAILED);
                                     }))
                     .bodyToMono(ShelterApiResponse.class)  // JSON을 DTO로 자동 변환
-                    .timeout(Duration.ofSeconds(15))
                     .block();  // 동기 방식으로 결과 대기 (비동기는 나중에 적용 가능)
 
             // 3. API 응답 검증
