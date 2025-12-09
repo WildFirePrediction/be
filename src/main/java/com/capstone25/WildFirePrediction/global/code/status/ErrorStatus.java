@@ -24,7 +24,8 @@ public enum ErrorStatus implements BaseErrorCode {
     SHELTER_API_SERVICE_KEY_INVALID(HttpStatus.UNAUTHORIZED, "SHELTER401", "대피소 API 서비스키가 유효하지 않습니다."),
     SHELTER_API_RESPONSE_INVALID(HttpStatus.BAD_REQUEST, "SHELTER400", "대피소 API 응답 형식이 잘못되었습니다."),
     SHELTER_API_CALL_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "SHELTER503", "대피소 API 호출에 실패했습니다."),
-    SHELTER_API_TIMEOUT(HttpStatus.REQUEST_TIMEOUT, "SHELTER408", "대피소 API 호출이 타임아웃 되었습니다.");
+    SHELTER_API_TIMEOUT(HttpStatus.REQUEST_TIMEOUT, "SHELTER408", "대피소 API 호출이 타임아웃 되었습니다."),
+    SHELTER_DATA_LOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "SHELTER501", "대피소 데이터 로드에 실패했습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
