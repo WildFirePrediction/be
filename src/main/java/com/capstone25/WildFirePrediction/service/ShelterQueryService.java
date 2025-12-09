@@ -36,7 +36,7 @@ public class ShelterQueryService {
                     bbox.getMinLon(), bbox.getMaxLon()
             );
 
-            if (!projections.isEmpty()) {
+            if (!projections.isEmpty()) {   // 결과 없으면 다음 반경으로
                 List<ShelterResponse> shelters = projections.stream()
                         .map(this::projectionToResponse)
                         .toList();
