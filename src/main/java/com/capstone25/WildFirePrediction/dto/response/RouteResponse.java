@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 public class RouteResponse {
 
     private Integer totalDistance;  // 총 거리 (m)
-    private Integer totalTime;      // 총 소요시간 (초)
+    private Integer totalTime;      // 총 소요시간 (분)
     private List<List<Double>> path; // 경로 좌표 배열 [[lon, lat], [lon, lat], ...]
     private String message;         // 추가 메시지 (옵션)
 }

@@ -131,7 +131,7 @@ public class TmapRouteService {
 
         return RouteResponse.builder()
                 .totalDistance(totalDistance)
-                .totalTime(totalTime)
+                .totalTime(totalTime != null ? (int) Math.round(totalTime / 60.0) : null)
                 .path(path)
                 .message("경로 조회 성공")
                 .build();
