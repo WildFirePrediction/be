@@ -26,11 +26,11 @@ public interface ShelterRepository extends JpaRepository<Shelter, Long> {
            s.latitude AS latitude, 
            s.longitude AS longitude, 
            s.shelter_type_name AS shelterTypeName,
-           (6371 * acos(cos(radians(:lat)) * 
-           cos(radians(s.latitude)) * 
-           cos(radians(s.longitude) - radians(:lon)) + 
-           sin(radians(:lat)) * 
-           sin(radians(s.latitude)))) AS distanceKm
+           (6371 * acos(LEAST(1.0, GREATEST(-1.0, 
+               cos(radians(:lat)) * cos(radians(s.latitude)) * 
+               cos(radians(s.longitude) - radians(:lon)) + 
+               sin(radians(:lat)) * sin(radians(s.latitude))
+           )))) AS distanceKm
     FROM shelter s 
     WHERE s.latitude BETWEEN :minLat AND :maxLat 
       AND s.longitude BETWEEN :minLon AND :maxLon
