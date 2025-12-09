@@ -1,5 +1,6 @@
 package com.capstone25.WildFirePrediction.service;
 
+import com.capstone25.WildFirePrediction.dto.BoundingBox;
 import com.capstone25.WildFirePrediction.dto.response.ShelterResponse;
 import com.capstone25.WildFirePrediction.repository.ShelterRepository;
 import java.util.ArrayList;
@@ -24,22 +25,43 @@ public class ShelterQueryService {
         for (int radiusKm : radii) {
             log.debug("반경 {}km 검색 중...", radiusKm);
 
-            // 1. 해당 반경에 대피소 존재 여부 확인 (성능 최적화)
-            long count = shelterRepository.countNearbyShelters(lat, lon, radiusKm);
-            if (count > 0) {
-                log.info("{}km 반경 내 {}개 대피소 발견", radiusKm, count);
+            // 1. 네모박스 계산 (인덱스 활용)
+            BoundingBox bbox = calculateBoundingBox(lat, lon, radiusKm);
 
-                // 2. 실제 데이터 조회
-                List<Object[]> results = shelterRepository.findNearbyShelters(lat, lon, radiusKm);
+            // 2. 하이브리드 쿼리 실행 (네모박스 + Haversine)
+            List<Object[]> results = shelterRepository.findNearbySheltersHybrid(
+                    lat, lon, radiusKm,
+                    bbox.getMinLat(), bbox.getMaxLat(),
+                    bbox.getMinLon(), bbox.getMaxLon()
+            );
+
+            if (!results.isEmpty()) {
                 List<ShelterResponse> shelters = convertToResponse(results);
-
-                log.info("{}km 반경 내 {}개 대피소 반환", radiusKm, shelters.size());
+                log.info("{}km 반경 내 {}개 대피소 반환 (네모박스 필터링 적용)",
+                        radiusKm, shelters.size());
                 return shelters;
             }
         }
 
         log.warn("10km 반경 내 대피소 없음");
         return new ArrayList<>();  // 아무것도 없음
+    }
+
+    // 네모박스 계산 (1km 당 약 0.009도)
+    private BoundingBox calculateBoundingBox(double lat, double lon, double radiusKm) {
+        final double KM_PER_DEGREE = 111.0;  // 1도 = 111km
+        double deltaDegree = radiusKm / KM_PER_DEGREE;
+
+        double minLat = lat - deltaDegree;
+        double maxLat = lat + deltaDegree;
+        double lonDegree = deltaDegree / Math.cos(Math.toRadians(lat));  // 위도 보정
+        double minLon = lon - lonDegree;
+        double maxLon = lon + lonDegree;
+
+        return BoundingBox.builder()
+                .minLat(minLat).maxLat(maxLat)
+                .minLon(minLon).maxLon(maxLon)
+                .build();
     }
 
     // Object[] -> ShelterResponse 변환

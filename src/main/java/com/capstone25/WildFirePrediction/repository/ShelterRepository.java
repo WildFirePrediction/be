@@ -17,39 +17,29 @@ public interface ShelterRepository extends JpaRepository<Shelter, Long> {
     // 관리일련번호 존재 여부 확인 (중복 방지)
     boolean existsByManagementNumber(String managementNumber);
 
-    // 위치 기준 반경 내 대피소 검색 (Haversine 공식 활용)
+    // 위치 기준 반경 내 대피소 검색 (네모박스 + Haversine 하이브리드
     @Query(value = """
-    SELECT s.id, s.facility_name, s.road_address, s.latitude, s.longitude, 
-           s.shelter_type_name,
-           (6371 * acos(cos(radians(:lat)) * 
-           cos(radians(s.latitude)) * 
-           cos(radians(s.longitude) - radians(:lon)) + 
-           sin(radians(:lat)) * 
-           sin(radians(s.latitude)))) AS distance_km
-    FROM shelter s 
-    HAVING distance_km < :radiusKm
-    ORDER BY distance_km ASC
-    LIMIT 100
-    """, nativeQuery = true)
-    List<Object[]> findNearbyShelters(
+        SELECT s.id, s.facility_name, s.road_address, s.latitude, s.longitude, 
+               s.shelter_type_name,
+               (6371 * acos(cos(radians(:lat)) * 
+               cos(radians(s.latitude)) * 
+               cos(radians(s.longitude) - radians(:lon)) + 
+               sin(radians(:lat)) * 
+               sin(radians(s.latitude)))) AS distance_km
+        FROM shelter s 
+        WHERE s.latitude BETWEEN :minLat AND :maxLat 
+          AND s.longitude BETWEEN :minLon AND :maxLon
+        HAVING distance_km < :radiusKm
+        ORDER BY distance_km ASC
+        LIMIT 100
+        """, nativeQuery = true)
+    List<Object[]> findNearbySheltersHybrid(
             @Param("lat") double lat,
             @Param("lon") double lon,
-            @Param("radiusKm") double radiusKm
-    );
-
-    // 반경 내 대피소 개수 확인
-    @Query(value = """
-    SELECT COUNT(*)
-    FROM shelter s 
-    WHERE (6371 * acos(cos(radians(:lat)) * 
-    cos(radians(s.latitude)) * 
-    cos(radians(s.longitude) - radians(:lon)) + 
-    sin(radians(:lat)) * 
-    sin(radians(s.latitude)))) < :radiusKm
-    """, nativeQuery = true)
-    long countNearbyShelters(
-            @Param("lat") double lat,
-            @Param("lon") double lon,
-            @Param("radiusKm") double radiusKm
+            @Param("radiusKm") double radiusKm,
+            @Param("minLat") double minLat,
+            @Param("maxLat") double maxLat,
+            @Param("minLon") double minLon,
+            @Param("maxLon") double maxLon
     );
 }
