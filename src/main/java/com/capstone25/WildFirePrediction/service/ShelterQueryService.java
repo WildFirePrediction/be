@@ -20,8 +20,6 @@ public class ShelterQueryService {
 
     // 검색 반경 단계 (km)
     private static final int[] SEARCH_RADII_KM = {3, 5, 7, 10};
-    private static final int DEFAULT_PAGE_SIZE = 10;
-    private static final int MAX_SHELTERS_FIRST_PAGE = 50;  // 첫페이지 최대치
 
     private static final double KM_PER_DEGREE = 111.0;  // 1도 = 111km
 
