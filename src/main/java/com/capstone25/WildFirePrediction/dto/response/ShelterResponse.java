@@ -15,5 +15,5 @@ public class ShelterResponse {
     private Double latitude;         // 위도
     private Double longitude;        // 경도
     private String shelterTypeName;  // 대피소구분명 (지진옥외대피장소 등)
-    private Double distanceKm;       // 현재 위치로부터 거리(km)
+    private Integer distanceM;       // 현재 위치로부터 거리(m, 반올림)
 }

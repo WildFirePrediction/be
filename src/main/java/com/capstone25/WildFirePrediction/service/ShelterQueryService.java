@@ -73,13 +73,16 @@ public class ShelterQueryService {
 
     // Projection → Response 변환
     private ShelterResponse projectionToResponse(ShelterProjection projection) {
+        // km → m 반올림 (소수점 버림)
+        int distanceMeters = (int) Math.floor(projection.getDistanceKm() * 1000);
+
         return ShelterResponse.builder()
                 .facilityName(projection.getFacilityName())
                 .roadAddress(projection.getRoadAddress())
                 .latitude(projection.getLatitude())
                 .longitude(projection.getLongitude())
                 .shelterTypeName(projection.getShelterTypeName())
-                .distanceKm(projection.getDistanceKm())
+                .distanceM(distanceMeters)
                 .build();
     }
 }
