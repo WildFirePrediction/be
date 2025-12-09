@@ -88,6 +88,16 @@ public class ShelterService {
             Double latitude = parseCoordinate(data.getLatitude());
             Double longitude = parseCoordinate(data.getLongitude());
 
+            // 위도 범위 검증 (-90 ~ 90)
+            if (latitude < -90.0 || latitude > 90.0) {
+                throw new IllegalArgumentException("잘못된 위도 값: " + latitude);
+            }
+
+            // 경도 범위 검증 (-180 ~ 180)
+            if (longitude < -180.0 || longitude > 180.0) {
+                throw new IllegalArgumentException("잘못된 경도 값: " + longitude);
+            }
+
             return Shelter.builder()
                     .managementNumber(data.getManagementNumber())
                     .facilityName(data.getFacilityName())
@@ -102,19 +112,14 @@ public class ShelterService {
         }
     }
 
-    // 좌표값 파싱 (유효성 검사 포함)
+    // 좌표값 파싱
     private Double parseCoordinate(String coordinateStr) {
         if (coordinateStr == null || coordinateStr.trim().isEmpty()) {
             throw new IllegalArgumentException("좌표값이 비어있습니다: " + coordinateStr);
         }
 
         try {
-            double coord = Double.parseDouble(coordinateStr.trim());
-            // 위도: -90 ~ 90, 경도: -180 ~ 180 범위 확인
-            if (coord < -90 || coord > 90) {
-                throw new IllegalArgumentException("위도 범위를 벗어났습니다: " + coord);
-            }
-            return coord;
+            return Double.parseDouble(coordinateStr.trim());
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("유효하지 않은 좌표 형식: " + coordinateStr, e);
         }
