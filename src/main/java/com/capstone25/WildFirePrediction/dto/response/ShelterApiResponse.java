@@ -9,6 +9,20 @@ import lombok.Data;
 @JsonIgnoreProperties(ignoreUnknown = true) // 추후 추가 필드 무시
 public class ShelterApiResponse {
 
+    private Header header;
+    private int pageNo;
+    private int numOfRows;
+    @JsonProperty("totalCount")
+    private int totalCount;
+    private List<ShelterData> body;
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Header {
+        private String resultCode;
+        private String resultMsg;
+    }
+
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class ShelterData {

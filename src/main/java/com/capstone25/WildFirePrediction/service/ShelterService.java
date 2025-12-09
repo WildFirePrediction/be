@@ -27,19 +27,24 @@ public class ShelterService {
 
         try {
             // 1. 첫 번째 페이지로 총 데이터 수 확인
-            int maxPages = 50;  // 임의 설정값
-            log.info("최대 {}페이지까지 로드 시작", maxPages);
+            ShelterApiResponse firstPage = shelterApiService.fetchShelterPage(1);
+            int totalCount = firstPage.getTotalCount();
+            int pageSize = firstPage.getNumOfRows();
+            int totalPages = (int) Math.ceil((double) totalCount / pageSize);
+
+            log.info("총 {}건, {}페이지로 분할하여 로드", totalCount, totalPages);
 
             int savedCount = 0;
             int skippedCount = 0;
 
             // 2. 모든 페이지 순회
-            for (int pageNo = 1; pageNo <= maxPages; pageNo++) {
-                List<ShelterApiResponse.ShelterData> shelterDataList = shelterApiService.fetchShelterPage(pageNo);
+            for (int pageNo = 1; pageNo <= totalPages; pageNo++) {
+                ShelterApiResponse response = shelterApiService.fetchShelterPage(pageNo);
+                List<ShelterApiResponse.ShelterData> shelterDataList = response.getBody();
 
                 if (shelterDataList == null || shelterDataList.isEmpty()) {
-                    log.info("페이지 {}에서 데이터가 없음. 로드 종료", pageNo);
-                    break;  // 빈 페이지 나오면 종료
+                    log.info("페이지 {}에서 데이터가 없음", pageNo);
+                    continue;
                 }
 
                 // 3. DTO -> Entity 변환 및 중복 체크 후 저장

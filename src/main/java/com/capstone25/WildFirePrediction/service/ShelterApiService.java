@@ -24,7 +24,7 @@ public class ShelterApiService {
     private final SafetyDataProperties safetyDataProperties;
 
     // api에서 대피소 정보 한 페이지 조회 (페이징)
-    public List<ShelterApiResponse.ShelterData> fetchShelterPage(int pageNo) {
+    public ShelterApiResponse fetchShelterPage(int pageNo) {
         // 1. yml에서 shelter api 설정 가져오기
         SafetyDataProperties.ApiConfig shelterConfig = safetyDataProperties.getApis().get("shelter");
 
@@ -36,64 +36,55 @@ public class ShelterApiService {
         try {
             log.info("대피소 API 호출 시작 - 페이지: {}, 페이지당 개수: {}", pageNo, shelterConfig.getPageSize());
 
-            // 임시) 실제 응답 로그 String으로 받기
-            String rawResponse = safetyDataWebClient.get()
+            // 2. WebClient로 GET 요청
+            ShelterApiResponse response = safetyDataWebClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path(shelterConfig.getPath())
                             .queryParam("serviceKey", shelterConfig.getServiceKey())
                             .queryParam("pageNo", pageNo)
                             .queryParam("numOfRows", shelterConfig.getPageSize())
-                            .queryParam("returnType", "json")
+                            .queryParam("returnType", "json")  // JSON 형식으로 응답 요청
                             .build())
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
+                    .retrieve() // 응답 수신
+                    .onStatus(status -> status.is4xxClientError(),  // 4xx 에러 처리
+                            clientResponse -> clientResponse.bodyToMono(String.class)
+                                    .map(errorBody -> {
+                                        log.error("클라이언트 에러 - 상태코드: {}, 응답: {}",
+                                                clientResponse.statusCode(), errorBody);
+                                        // 401, 403 등 인증 관련은 SERVICE_KEY_INVALID
+                                        if (clientResponse.statusCode().value() == 401 ||
+                                                clientResponse.statusCode().value() == 403) {
+                                            return new ExceptionHandler(ErrorStatus.SHELTER_API_SERVICE_KEY_INVALID);
+                                        }
+                                        return new ExceptionHandler(ErrorStatus.SHELTER_API_CALL_FAILED);
+                                    }))
+                    .onStatus(status -> status.is5xxServerError(),  // 5xx 에러 처리
+                            clientResponse -> clientResponse.bodyToMono(String.class)
+                                    .map(errorBody -> {
+                                        log.error("서버 에러 - 상태코드: {}, 응답: {}",
+                                                clientResponse.statusCode(), errorBody);
+                                        return new ExceptionHandler(ErrorStatus.SHELTER_API_CALL_FAILED);
+                                    }))
+                    .bodyToMono(ShelterApiResponse.class)  // JSON을 DTO로 자동 변환
+                    .block();  // 동기 방식으로 결과 대기 (비동기는 나중에 적용 가능)
 
-            log.error("=== 실제 API 응답 구조 ===");
-            log.error(rawResponse.substring(0, Math.min(1000, rawResponse.length())));  // 처음 1000자만
-            throw new RuntimeException("JSON 구조 확인용");  // 임시 중단
+            // 3. API 응답 검증
+            if (response == null) {
+                log.warn("대피소 API 응답이 null입니다 - 페이지: {}", pageNo);
+                return response;
+            }
 
-            // 2. WebClient로 GET 요청
-//            List<ShelterApiResponse.ShelterData> response = safetyDataWebClient.get()
-//                    .uri(uriBuilder -> uriBuilder
-//                            .path(shelterConfig.getPath())
-//                            .queryParam("serviceKey", shelterConfig.getServiceKey())
-//                            .queryParam("pageNo", pageNo)
-//                            .queryParam("numOfRows", shelterConfig.getPageSize())
-//                            .queryParam("returnType", "json")  // JSON 형식으로 응답 요청
-//                            .build())
-//                    .retrieve() // 응답 수신
-//                    .onStatus(status -> status.is4xxClientError(),  // 4xx 에러 처리
-//                            clientResponse -> clientResponse.bodyToMono(String.class)
-//                                    .map(errorBody -> {
-//                                        log.error("클라이언트 에러 - 상태코드: {}, 응답: {}",
-//                                                clientResponse.statusCode(), errorBody);
-//                                        // 401, 403 등 인증 관련은 SERVICE_KEY_INVALID
-//                                        if (clientResponse.statusCode().value() == 401 ||
-//                                                clientResponse.statusCode().value() == 403) {
-//                                            return new ExceptionHandler(ErrorStatus.SHELTER_API_SERVICE_KEY_INVALID);
-//                                        }
-//                                        return new ExceptionHandler(ErrorStatus.SHELTER_API_CALL_FAILED);
-//                                    }))
-//                    .onStatus(status -> status.is5xxServerError(),  // 5xx 에러 처리
-//                            clientResponse -> clientResponse.bodyToMono(String.class)
-//                                    .map(errorBody -> {
-//                                        log.error("서버 에러 - 상태코드: {}, 응답: {}",
-//                                                clientResponse.statusCode(), errorBody);
-//                                        return new ExceptionHandler(ErrorStatus.SHELTER_API_CALL_FAILED);
-//                                    }))
-//                    .bodyToMono(new ParameterizedTypeReference<List<ShelterData>>() {})  // JSON을 DTO로 자동 변환
-//                    .block();  // 동기 방식으로 결과 대기 (비동기는 나중에 적용 가능)
-//
-//            // 3. API 응답 검증
-//            if (response == null || response.isEmpty()) {
-//                log.warn("대피소 API 응답이 비어있습니다 - 페이지: {}", pageNo);
-//                return new ArrayList<>();
-//            }
-//
-//            log.info("대피소 API 호출 성공 - {}건 조회", response.size());
-//
-//            return response;
+            if (!"00".equals(response.getHeader().getResultCode())) {
+                log.error("API 응답 오류 - 코드: {}, 메시지: {}",
+                        response.getHeader().getResultCode(), response.getHeader().getResultMsg());
+                throw new ExceptionHandler(ErrorStatus.SHELTER_API_CALL_FAILED);
+            }
+
+            List<ShelterApiResponse.ShelterData> dataList = response.getBody();
+            log.info("대피소 API 호출 성공 - 총 {}건 중 페이지 {}: {}건",
+                    response.getTotalCount(), pageNo, dataList != null ? dataList.size() : 0);
+
+            return response;
         } catch (ReadTimeoutException e) {
             log.error("대피소 API 호출 타임아웃", e);
             throw new ExceptionHandler(ErrorStatus.SHELTER_API_TIMEOUT);
