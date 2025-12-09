@@ -5,6 +5,8 @@ import com.capstone25.WildFirePrediction.dto.projection.ShelterProjection;
 import com.capstone25.WildFirePrediction.dto.response.ShelterResponse;
 import com.capstone25.WildFirePrediction.repository.ShelterRepository;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,7 +52,7 @@ public class ShelterQueryService {
         }
 
         log.warn("10km 반경 내 대피소 없음");
-        return new ArrayList<>();  // 아무것도 없음
+        return Collections.emptyList();  // 아무것도 없음
     }
 
     // 네모박스 계산 (1km 당 약 0.009도)
