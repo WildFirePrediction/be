@@ -51,6 +51,12 @@ public class ShelterService {
                 List<Shelter> sheltersToSave = new ArrayList<>();
                 for (ShelterApiResponse.ShelterData data : shelterDataList) {
                     try {
+                        // 대피소 타입 필터링 (3, 4만 저장)
+                        if (!"3".equals(data.getShelterTypeCode()) && !"4".equals(data.getShelterTypeCode())) {
+                            log.debug("필터링 - {} (코드: {})", data.getShelterTypeName(), data.getShelterTypeCode());
+                            continue;
+                        }
+
                         Shelter shelter = convertToEntity(data);
 
                         // 중복 체크 (managementNumber 기준)
