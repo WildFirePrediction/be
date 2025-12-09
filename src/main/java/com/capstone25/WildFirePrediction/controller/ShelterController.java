@@ -41,7 +41,7 @@ public class ShelterController {
     @GetMapping("/nearby")
     @Operation(summary = "근처 대피소 검색",
             description = "현재 위치 기준 3→5→7→10km 순차 검색. <br>"
-                    + "가장 가까운 반경에서 결과 반환"
+                    + "가장 가까운 반경에서 결과 반환 (최대 100개)"
     )
     public ApiResponse<List<ShelterResponse>> findNearbyShelters(
             @Parameter(description = "현재 위도", example = "37.5665") @RequestParam double lat,
