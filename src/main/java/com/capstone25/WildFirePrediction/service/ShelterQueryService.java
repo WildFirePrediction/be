@@ -76,7 +76,7 @@ public class ShelterQueryService {
                     0, 1  // 첫 번째만!
             ).stream().findFirst();
 
-            if (first != null) {
+            if (first.isPresent()) {
                 log.debug("{}km 반경에 데이터 존재 확인", radius);
                 return radius;
             }
