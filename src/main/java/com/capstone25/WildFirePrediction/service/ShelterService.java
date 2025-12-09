@@ -27,24 +27,19 @@ public class ShelterService {
 
         try {
             // 1. 첫 번째 페이지로 총 데이터 수 확인
-            ShelterApiResponse firstPage = shelterApiService.fetchShelterPage(1);
-            int totalCount = firstPage.getBody().getTotalCount();
-            int pageSize = firstPage.getBody().getNumOfRows();
-            int totalPages = (int) Math.ceil((double) totalCount / pageSize);
-
-            log.info("총 {}건, {}페이지로 분할하여 로드", totalCount, totalPages);
+            int maxPages = 50;  // 임의 설정값
+            log.info("최대 {}페이지까지 로드 시작", maxPages);
 
             int savedCount = 0;
             int skippedCount = 0;
 
             // 2. 모든 페이지 순회
-            for (int pageNo = 1; pageNo <= totalPages; pageNo++) {
-                ShelterApiResponse response = shelterApiService.fetchShelterPage(pageNo);
-                List<ShelterApiResponse.ShelterData> shelterDataList = response.getBody().getData();
+            for (int pageNo = 1; pageNo <= maxPages; pageNo++) {
+                List<ShelterApiResponse.ShelterData> shelterDataList = shelterApiService.fetchShelterPage(pageNo);
 
                 if (shelterDataList == null || shelterDataList.isEmpty()) {
-                    log.warn("페이지 {}에 데이터가 없습니다.", pageNo);
-                    continue;
+                    log.info("페이지 {}에서 데이터가 없음. 로드 종료", pageNo);
+                    break;  // 빈 페이지 나오면 종료
                 }
 
                 // 3. DTO -> Entity 변환 및 중복 체크 후 저장
@@ -70,11 +65,10 @@ public class ShelterService {
                 if (!sheltersToSave.isEmpty()) {
                     shelterRepository.saveAll(sheltersToSave);
                     savedCount += sheltersToSave.size();
-                    log.info("페이지 {} 저장 완료: {}건", pageNo, sheltersToSave.size());
+                    log.info("페이지 {} 저장 완료: {}건 (총 저장: {})", pageNo, sheltersToSave.size(), savedCount);
                 }
             }
-            log.info("대피소 데이터 로드 완료 - 저장: {}, 중복 스킵: {}, 총: {}",
-                    savedCount, skippedCount, savedCount + skippedCount);
+            log.info("대피소 데이터 로드 완료 - 저장: {}, 중복 스킵: {}", savedCount, skippedCount);
         } catch (Exception e) {
             log.error("대피소 데이터 로드 실패", e);
             throw new ExceptionHandler(ErrorStatus.SHELTER_DATA_LOAD_FAILED);

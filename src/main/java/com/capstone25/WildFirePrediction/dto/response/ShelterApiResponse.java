@@ -9,48 +9,28 @@ import lombok.Data;
 @JsonIgnoreProperties(ignoreUnknown = true) // 추후 추가 필드 무시
 public class ShelterApiResponse {
 
-    private Header header;
-    private Body body;
-
-    @Data
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class Header {
-        private String resultCode;
-        private String resultMsg;
-    }
-
-    @Data
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class Body {
-        private int pageNo;
-        private int totalCount;
-        private int numOfRows;
-        private List<ShelterData> data;
-    }
-
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class ShelterData {
-
         @JsonProperty("REARE_NM")
-        private String facilityName;
+        private String facilityName;  // 시설명
 
         @JsonProperty("RONA_DADDR")
-        private String roadAddress;
+        private String roadAddress;  // 도로명전체주소
 
         @JsonProperty("LAT")
-        private String latitude;
+        private String latitude;     // 위도
 
         @JsonProperty("LOT")
-        private String longitude;
+        private String longitude;    // 경도
 
         @JsonProperty("SHLT_SE_CD")
-        private String shelterTypeCode;
+        private String shelterTypeCode;  // 대피소구분코드
 
         @JsonProperty("SHLT_SE_NM")
-        private String shelterTypeName;
+        private String shelterTypeName;  // 대피소구분명
 
         @JsonProperty("MNG_SN")
-        private String managementNumber;
+        private String managementNumber; // 관리일련번호
     }
 }

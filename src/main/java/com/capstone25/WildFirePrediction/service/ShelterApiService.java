@@ -2,11 +2,15 @@ package com.capstone25.WildFirePrediction.service;
 
 import com.capstone25.WildFirePrediction.config.SafetyDataProperties;
 import com.capstone25.WildFirePrediction.dto.response.ShelterApiResponse;
+import com.capstone25.WildFirePrediction.dto.response.ShelterApiResponse.ShelterData;
 import com.capstone25.WildFirePrediction.global.code.status.ErrorStatus;
 import com.capstone25.WildFirePrediction.global.exception.handler.ExceptionHandler;
 import io.netty.handler.timeout.ReadTimeoutException;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
@@ -20,7 +24,7 @@ public class ShelterApiService {
     private final SafetyDataProperties safetyDataProperties;
 
     // api에서 대피소 정보 한 페이지 조회 (페이징)
-    public ShelterApiResponse fetchShelterPage(int pageNo) {
+    public List<ShelterApiResponse.ShelterData> fetchShelterPage(int pageNo) {
         // 1. yml에서 shelter api 설정 가져오기
         SafetyDataProperties.ApiConfig shelterConfig = safetyDataProperties.getApis().get("shelter");
 
@@ -33,7 +37,7 @@ public class ShelterApiService {
             log.info("대피소 API 호출 시작 - 페이지: {}, 페이지당 개수: {}", pageNo, shelterConfig.getPageSize());
 
             // 2. WebClient로 GET 요청
-            ShelterApiResponse response = safetyDataWebClient.get()
+            List<ShelterApiResponse.ShelterData> response = safetyDataWebClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path(shelterConfig.getPath())
                             .queryParam("serviceKey", shelterConfig.getServiceKey())
@@ -61,31 +65,16 @@ public class ShelterApiService {
                                                 clientResponse.statusCode(), errorBody);
                                         return new ExceptionHandler(ErrorStatus.SHELTER_API_CALL_FAILED);
                                     }))
-                    .bodyToMono(ShelterApiResponse.class)  // JSON을 DTO로 자동 변환
+                    .bodyToMono(new ParameterizedTypeReference<List<ShelterData>>() {})  // JSON을 DTO로 자동 변환
                     .block();  // 동기 방식으로 결과 대기 (비동기는 나중에 적용 가능)
 
             // 3. API 응답 검증
-            if (response == null) {
-                log.error("API 응답이 null입니다.");
-                throw new ExceptionHandler(ErrorStatus.SHELTER_API_RESPONSE_INVALID);
+            if (response == null || response.isEmpty()) {
+                log.warn("대피소 API 응답이 비어있습니다 - 페이지: {}", pageNo);
+                return new ArrayList<>();
             }
 
-            if (response.getHeader() == null) {
-                log.error("API 응답 헤더가 null입니다.");
-                throw new ExceptionHandler(ErrorStatus.SHELTER_API_RESPONSE_INVALID);
-            }
-
-            // 4. 응답 코드 확인 (재난안전데이터플랫폼은 "00"이 정상)
-            if (!"00".equals(response.getHeader().getResultCode())) {
-                log.error("API 응답 오류 - 코드: {}, 메시지: {}",
-                        response.getHeader().getResultCode(),
-                        response.getHeader().getResultMsg());
-                throw new ExceptionHandler(ErrorStatus.SHELTER_API_CALL_FAILED);
-            }
-
-            log.info("대피소 API 호출 성공 - 총 {}건 중 {}건 조회",
-                    response.getBody().getTotalCount(),
-                    response.getBody().getData() != null ? response.getBody().getData().size() : 0);
+            log.info("대피소 API 호출 성공 - {}건 조회", response.size());
 
             return response;
         } catch (ReadTimeoutException e) {
