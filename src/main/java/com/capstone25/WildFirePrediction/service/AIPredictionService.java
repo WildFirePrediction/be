@@ -3,12 +3,16 @@ package com.capstone25.WildFirePrediction.service;
 import com.capstone25.WildFirePrediction.domain.AIPredictedCell;
 import com.capstone25.WildFirePrediction.domain.AIPredictionFire;
 import com.capstone25.WildFirePrediction.domain.enums.FireStatus;
+import com.capstone25.WildFirePrediction.dto.request.AIPredictionRequest.FireLocationDto;
 import com.capstone25.WildFirePrediction.dto.request.AIPredictionRequest.FirePredictionRequestDto;
 import com.capstone25.WildFirePrediction.dto.request.AIPredictionRequest.PredictedCellDto;
 import com.capstone25.WildFirePrediction.dto.request.AIPredictionRequest.PredictionDto;
 import com.capstone25.WildFirePrediction.repository.AIPredictedCellRepository;
 import com.capstone25.WildFirePrediction.repository.AIPredictionFireRepository;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -178,6 +182,73 @@ public class AIPredictionService {
         }
 
         return true;
+    }
+
+    // 진행 중 화재 예측을 FirePredictionRequestDto 리스트로 반환
+    @Transactional(readOnly = true)
+    public List<FirePredictionRequestDto> getActiveFirePredictionsAsRequestDto() {
+        // 1. 진행 중 화재 조회
+        List<AIPredictionFire> fires = fireRepository.findAllProgressFiresWithCells();
+
+        // 2. 엔티티 -> FirePredictionRequestDto 변환
+        return fires.stream()
+                .map(this::toFirePredictionRequestDto)
+                .collect(Collectors.toList());
+    }
+
+    // Fire 엔티티 -> FirePredictionRequestDto 변환
+    private FirePredictionRequestDto toFirePredictionRequestDto(AIPredictionFire fire) {
+
+        // fire_location
+        FireLocationDto locationDto = FireLocationDto.builder()
+                .lat(fire.getFireLatitude())
+                .lon(fire.getFireLongitude())
+                .build();
+
+        // AIPredictedCell -> PredictionDto (timestep별 그룹핑)
+        Map<Integer, List<AIPredictedCell>> byTimeStep = fire.getPredictedCells().stream()
+                .collect(Collectors.groupingBy(AIPredictedCell::getTimeStep));
+
+        List<PredictionDto> predictionDtos = byTimeStep.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey()) // timestep 오름차순
+                .map(entry -> {
+                    Integer timestep = entry.getKey();
+                    List<AIPredictedCell> cells = entry.getValue();
+
+                    String timestamp = cells.get(0).getPredictedTimestamp();
+
+                    List<PredictedCellDto> cellDtos = cells.stream()
+                            .map(cell -> PredictedCellDto.builder()
+                                    .lat(cell.getLatitude())
+                                    .lon(cell.getLongitude())
+                                    .probability(cell.getProbability())
+                                    .build())
+                            .collect(Collectors.toList());
+
+                    return PredictionDto.builder()
+                            .timestep(timestep)
+                            .timestamp(timestamp)
+                            .predictedCells(cellDtos)
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        // FirePredictionRequestDto 생성 (event_type = "0" 고정)
+        return FirePredictionRequestDto.builder()
+                .eventType("0")
+                .fireId(fire.getFireId())
+                .fireLocation(locationDto)
+                .fireTimestamp(fire.getFireTimestamp())
+                .inferenceTimestamp(fire.getInferenceTimestamp())
+                .model(fire.getModel())
+                .predictions(predictionDtos)
+                // 종료 관련 필드는 진행 중이므로 null
+                .endedTimestamp(null)
+                .completionTimestamp(null)
+                .endReason(null)
+                .lastStatus(null)
+                .lastStatusCode(null)
+                .build();
     }
 
     // DTO -> Fire 엔티티 변환
