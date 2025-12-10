@@ -30,7 +30,7 @@ public class PublicApiService {
 
         if (config == null) {
             log.error("[{}] API 설정을 찾을 수 없습니다. application.yml을 확인하세요.", apiKey);
-            throw new ExceptionHandler(ErrorStatus.SHELTER_API_CONFIG_MISSING);
+            throw new ExceptionHandler(ErrorStatus.API_CONFIG_MISSING);
         }
 
         try {
@@ -61,16 +61,16 @@ public class PublicApiService {
                                                 apiKey, clientResponse.statusCode(), errorBody);
                                         if (clientResponse.statusCode().value() == 401 ||
                                                 clientResponse.statusCode().value() == 403) {
-                                            return new ExceptionHandler(ErrorStatus.SHELTER_API_SERVICE_KEY_INVALID);
+                                            return new ExceptionHandler(ErrorStatus.API_SERVICE_KEY_INVALID);
                                         }
-                                        return new ExceptionHandler(ErrorStatus.SHELTER_API_CALL_FAILED);
+                                        return new ExceptionHandler(ErrorStatus.API_CALL_FAILED);
                                     }))
                     .onStatus(status -> status.is5xxServerError(),
                             clientResponse -> clientResponse.bodyToMono(String.class)
                                     .map(errorBody -> {
                                         log.error("[{}] 서버 에러 - 상태코드: {}, 응답: {}",
                                                 apiKey, clientResponse.statusCode(), errorBody);
-                                        return new ExceptionHandler(ErrorStatus.SHELTER_API_CALL_FAILED);
+                                        return new ExceptionHandler(ErrorStatus.API_CALL_FAILED);
                                     }))
                     .bodyToMono(typeRef)
                     .block();
@@ -86,18 +86,18 @@ public class PublicApiService {
                         apiKey,
                         response.getHeader().getResultCode(),
                         response.getHeader().getResultMsg());
-                throw new ExceptionHandler(ErrorStatus.SHELTER_API_CALL_FAILED);
+                throw new ExceptionHandler(ErrorStatus.API_CALL_FAILED);
             }
 
             return response;
         } catch (WebClientResponseException e) {
             log.error("[{}] API 호출 중 HTTP 오류 - 상태코드: {}, 응답: {}",
                     apiKey, e.getStatusCode(), e.getResponseBodyAsString());
-            throw new ExceptionHandler(ErrorStatus.SHELTER_API_CALL_FAILED);
+            throw new ExceptionHandler(ErrorStatus.API_CALL_FAILED);
         } catch (Exception e) {
             log.error("[{}] API 호출 중 예외 발생", apiKey, e);
             if (e.getMessage() != null && e.getMessage().contains("Json")) {
-                throw new ExceptionHandler(ErrorStatus.SHELTER_API_RESPONSE_INVALID);
+                throw new ExceptionHandler(ErrorStatus.API_RESPONSE_INVALID);
             }
             throw new ExceptionHandler(ErrorStatus._INTERNAL_SERVER_ERROR);
         }
