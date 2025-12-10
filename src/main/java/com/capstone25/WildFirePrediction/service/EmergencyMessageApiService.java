@@ -72,9 +72,11 @@ public class EmergencyMessageApiService {
                 return response;
             }
 
-            if (!"00".equals(response.getHeader().getResultCode())) {
-                log.error("API 응답 오류 - 코드: {}, 메시지: {}",
-                        response.getHeader().getResultCode(), response.getHeader().getResultMsg());
+            if (response.getHeader() == null || !"00".equals(response.getHeader().getResultCode())) {
+                String errorCode = response.getHeader() != null ? response.getHeader().getResultCode() : "NULL_HEADER";
+                String errorMsg = response.getHeader() != null ? response.getHeader().getResultMsg() : "응답 헤더가 없습니다.";
+
+                log.error("API 응답 오류 - 코드: {}, 메시지: {}", errorCode, errorMsg);
                 throw new ExceptionHandler(ErrorStatus.EMERGENCY_API_CALL_FAILED);
             }
 
