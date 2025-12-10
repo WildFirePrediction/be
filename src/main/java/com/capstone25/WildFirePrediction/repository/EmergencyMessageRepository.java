@@ -1,7 +1,6 @@
 package com.capstone25.WildFirePrediction.repository;
 
 import com.capstone25.WildFirePrediction.domain.EmergencyMessage;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -47,4 +46,10 @@ public interface EmergencyMessageRepository extends JpaRepository<EmergencyMessa
     // 지역별 개수
     @Query(value = "SELECT COUNT(*) FROM emergency_message WHERE region_name LIKE CONCAT('%', :region, '%')", nativeQuery = true)
     long countByRegion(@Param("region") String region);
+
+    @Query(value = """
+    SELECT serial_number FROM emergency_message 
+    WHERE serial_number IN :serialNumbers
+    """, nativeQuery = true)
+    List<String> findExistingSerialNumbers(@Param("serialNumbers") List<String> serialNumbers);
 }

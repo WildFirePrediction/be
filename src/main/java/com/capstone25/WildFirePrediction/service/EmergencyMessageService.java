@@ -10,7 +10,10 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -43,45 +46,55 @@ public class EmergencyMessageService {
                 return;
             }
 
-            // 2. 모든 페이지 순회
+            // 2. DB 기존 serialNumber들 조회 (N+1 해결 핵심!)
+            List<String> firstPageSerialNumbers = firstPage.getBody().stream()
+                    .map(EmergencyMessageApiResponse.EmergencyMessageData::getSerialNumber)
+                    .filter(Objects::nonNull)
+                    .toList();
+            Set<String> existingSerialNumbers = new HashSet<>(
+                    emergencyMessageRepository.findExistingSerialNumbers(firstPageSerialNumbers)
+            ); // 첫 페이지 serialNumber로 DB 조회
+
+            log.info("DB 기존 데이터: {}건 / API 첫페이지: {}건", existingSerialNumbers.size(), firstPageSerialNumbers.size());
+
+            // 3. 페이지별 처리 (동일)
             int savedCount = 0;
             int skippedCount = 0;
-            for(int pageNo = 1; pageNo <= totalPages; pageNo++) {
-                EmergencyMessageApiResponse response = emergencyMessageApiService.fetchEmergencyMessagePage(pageNo, today, null);
-                List<EmergencyMessageApiResponse.EmergencyMessageData> messageDataList = response.getBody();
-
-                if (messageDataList == null || messageDataList.isEmpty()) {
-                    log.warn("페이지 {} 비어있음", pageNo);
-                    continue;
-                }
-
-                // 3. 현재 페이지 데이터 처리
-                List<EmergencyMessage> messagesToSave = new ArrayList<>();
-                for (EmergencyMessageApiResponse.EmergencyMessageData data : messageDataList) {
-                    try {
-                        EmergencyMessage message = convertToEntity(data);
-                        if (emergencyMessageRepository.existsBySerialNumber(message.getSerialNumber())) {
-                            skippedCount++;
-                            continue;
-                        }
-                        messagesToSave.add(message);
-                    } catch (Exception e) {
-                        log.error("페이지 {} 데이터 변환 실패: {}", pageNo, data.getSerialNumber(), e);
-                    }
-                }
-
-                // 4. 배치 저장
+            for (int pageNo = 1; pageNo <= totalPages; pageNo++) {
+                List<EmergencyMessage> messagesToSave = processPage(pageNo, today, existingSerialNumbers);
                 if (!messagesToSave.isEmpty()) {
                     emergencyMessageRepository.saveAll(messagesToSave);
                     savedCount += messagesToSave.size();
-                    log.info("페이지 {} 저장: {}건 (누적: {})", pageNo, messagesToSave.size(), savedCount);
+                    // 저장된 serialNumber를 Set에 추가 (중복 방지)
+                    messagesToSave.forEach(msg -> existingSerialNumbers.add(msg.getSerialNumber()));
                 }
+                skippedCount += pageSize - messagesToSave.size();
+                log.info("페이지 {} 저장: {}건 (누적: {})", pageNo, messagesToSave.size(), savedCount);
             }
-            log.info("오늘 재난문자 동기화 완료 - 신규: {}건, 중복: {}건 (총 {}건)", savedCount, skippedCount, totalCount);
+
+            log.info("오늘 재난문자 동기화 완료 - 신규: {}건, 중복: {}건", savedCount, skippedCount);
         } catch (Exception e) {
             log.error("오늘 재난문자 동기화 실패", e);
             throw new ExceptionHandler(ErrorStatus.EMERGENCY_DATA_LOAD_FAILED);
         }
+    }
+
+    // 페이지별 처리 (메모리 Set으로 O(1) 비교)
+    private List<EmergencyMessage> processPage(int pageNo, String today, Set<String> existingSerialNumbers) {
+        EmergencyMessageApiResponse response = emergencyMessageApiService.fetchEmergencyMessagePage(pageNo, today, null);
+        List<EmergencyMessage> messagesToSave = new ArrayList<>();
+
+        for (EmergencyMessageApiResponse.EmergencyMessageData data : response.getBody()) {
+            String serialNumber = data.getSerialNumber();
+            if (serialNumber != null && !existingSerialNumbers.contains(serialNumber)) {
+                try {
+                    messagesToSave.add(convertToEntity(data));
+                } catch (Exception e) {
+                    log.error("페이지 {} 변환 실패: {}", pageNo, serialNumber, e);
+                }
+            }
+        }
+        return messagesToSave;
     }
 
     private EmergencyMessage convertToEntity(EmergencyMessageApiResponse.EmergencyMessageData data) {
