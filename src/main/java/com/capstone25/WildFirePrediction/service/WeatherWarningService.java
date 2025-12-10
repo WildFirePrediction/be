@@ -136,14 +136,14 @@ public class WeatherWarningService {
         return savedCount;
     }
 
-    // 5분마다 최신 통보문 조회
-    @Scheduled(cron = "0 0/5 * * * *")
+    // 10분마다 최신 통보문 조회
+    @Scheduled(cron = "0 */10 * * * *")
     @Transactional
     public void scheduledFetchWeatherWarnings() {
-        log.info("[기상특보] 5분 주기 수집 시작");
+        log.info("[기상특보] 10분 주기 수집 시작");
         try {
             loadTodaysWeatherWarnings();
-            log.info("[기상특보] 5분 주기 수집 완료");
+            log.info("[기상특보] 10분 주기 수집 완료");
         } catch (Exception e) {
             log.error("[기상특보] 스케줄링 수집 중 예외 발생", e);
             // 다음 실행까지 계속 동작 보장

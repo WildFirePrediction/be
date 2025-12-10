@@ -184,13 +184,13 @@ public class EmergencyMessageService {
         }
     }
 
-    // 5분마다 최신 재난문자 데이터 수집
-    @Scheduled(cron = "0 0/5 * * * *")  // 매 5분 0초
+    // 10분마다 최신 재난문자 데이터 수집
+    @Scheduled(cron = "0 0/10 * * * *")
     public void scheduledFetchTodayMessages() {
-        log.info("[재난문자] 5분 주기 수집 시작");
+        log.info("[재난문자] 10분 주기 수집 시작");
         try {
             loadTodaysEmergencyMessages();
-            log.info("[재난문자] 5분 주기 수집 완료");
+            log.info("[재난문자] 10분 주기 수집 완료");
         } catch (Exception e) {
             log.error("[재난문자] 스케줄링 수집 중 예외 발생", e);
             // 다음 실행까지 계속 동작 보장
