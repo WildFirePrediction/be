@@ -41,7 +41,10 @@ public enum ErrorStatus implements BaseErrorCode {
     WEATHER_WARNING_API_RESPONSE_INVALID(HttpStatus.BAD_REQUEST, "WEATHER400", "기상특보 API 응답 형식이 잘못되었습니다."),
     WEATHER_WARNING_API_CALL_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "WEATHER503", "기상특보 API 호출에 실패했습니다."),
     WEATHER_WARNING_API_TIMEOUT(HttpStatus.REQUEST_TIMEOUT, "WEATHER408", "기상특보 API 호출이 타임아웃 되었습니다."),
-    WEATHER_WARNING_DATA_LOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WEATHER501", "기상특보 데이터 로드에 실패했습니다.");
+    WEATHER_WARNING_DATA_LOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WEATHER501", "기상특보 데이터 로드에 실패했습니다."),
+
+    // 유저 선호지역 관련 에러
+    PREFERENCE_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "PREFERENCE400", "선호지역은 최대 3개까지 설정할 수 있습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
