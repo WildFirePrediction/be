@@ -62,4 +62,26 @@ public interface AIPredictedCellRepository extends JpaRepository<AIPredictedCell
     // 특정 화재의 예측 셀 개수 조회
     @Query("SELECT COUNT(c) FROM AIPredictedCell c WHERE c.fire.id = :fireId")
     long countByFireId(@Param("fireId") Long fireId);
+
+    // 공간 인덱스 쿼리
+    @Query(value = """
+        SELECT c.* FROM ai_predicted_cell c
+        JOIN ai_prediction_fire f ON c.fire_id = f.id
+        WHERE MBRContains(
+            ST_GeomFromText(:bboxPolygon, 0),
+            c.geom
+        ) 
+        AND f.status = 'PROGRESS'
+        AND STR_TO_DATE(c.predicted_timestamp, '%Y-%m-%dT%H:%i:%s') 
+            BETWEEN CURRENT_TIMESTAMP 
+            AND DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 1 HOUR)
+        AND c.probability > :minProbability
+        ORDER BY ST_Distance_Sphere(c.geom, ST_GeomFromText(:centerPoint, 0))
+        LIMIT 100
+        """, nativeQuery = true)
+    List<AIPredictedCell> findDangerCellsNearRoute(
+            @Param("bboxPolygon") String bboxPolygon,
+            @Param("centerPoint") String centerPoint,
+            @Param("minProbability") double minProbability
+    );
 }

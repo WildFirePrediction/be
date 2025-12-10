@@ -11,6 +11,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -42,6 +44,10 @@ public class AIPredictedCell extends BaseEntity {
     @Column(nullable = false)
     private Double longitude;
 
+    // 공간 컬럼 추가 (MySQL POINT 타입)
+    @Column(columnDefinition = "POINT NOT NULL", nullable = false)
+    private String geom;  // "POINT(long lat)" 형태로 저장
+
     // 타임스텝 정보 (1~5)
     @Column(nullable = false)
     private Integer timeStep;
@@ -58,6 +64,15 @@ public class AIPredictedCell extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "fire_id", nullable = false, foreignKey = @ForeignKey(name = "fk_cell_fire"))
     private AIPredictionFire fire;
+
+    // 공간 데이터 자동 생성 (PrePersist)
+    @PrePersist
+    @PreUpdate
+    public void generateGeom() {
+        if (latitude != null && longitude != null) {
+            this.geom = String.format("POINT(%f %f)", longitude, latitude);
+        }
+    }
 
 
     // 양방향 관계 설정 메서드 (AIPredictionFire 쪽에서 호출)
