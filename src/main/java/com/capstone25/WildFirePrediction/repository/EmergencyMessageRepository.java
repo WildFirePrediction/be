@@ -30,7 +30,7 @@ public interface EmergencyMessageRepository extends JpaRepository<EmergencyMessa
     // 지역별 최근 조회 (LIKE 검색)
     @Query(value = """
         SELECT * FROM emergency_message 
-        WHERE region_name LIKE %:region%
+        WHERE region_name LIKE CONCAT('%', :region, '%')
         ORDER BY created_at DESC 
         LIMIT :size OFFSET :offset
         """, nativeQuery = true)
