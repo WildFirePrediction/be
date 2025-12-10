@@ -45,6 +45,6 @@ public interface EmergencyMessageRepository extends JpaRepository<EmergencyMessa
     long countAll();
 
     // 지역별 개수
-    @Query(value = "SELECT COUNT(*) FROM emergency_message WHERE region_name LIKE %:region%", nativeQuery = true)
+    @Query(value = "SELECT COUNT(*) FROM emergency_message WHERE region_name LIKE CONCAT('%', :region, '%')", nativeQuery = true)
     long countByRegion(@Param("region") String region);
 }
