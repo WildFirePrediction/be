@@ -3,6 +3,8 @@ package com.capstone25.WildFirePrediction.service;
 import com.capstone25.WildFirePrediction.domain.Region;
 import com.capstone25.WildFirePrediction.domain.UserDevice;
 import com.capstone25.WildFirePrediction.domain.UserRegionPreference;
+import com.capstone25.WildFirePrediction.global.code.status.ErrorStatus;
+import com.capstone25.WildFirePrediction.global.exception.handler.ExceptionHandler;
 import com.capstone25.WildFirePrediction.repository.RegionRepository;
 import com.capstone25.WildFirePrediction.repository.UserDeviceRepository;
 import com.capstone25.WildFirePrediction.repository.UserRegionPreferenceRepository;
@@ -23,7 +25,7 @@ public class UserPreferenceService {
     @Transactional
     public void setPreferences(String deviceUuid, List<Long> regionIds) {
         if (regionIds.size() > 3) {
-            throw new IllegalArgumentException("선호지역은 최대 3개까지 설정할 수 있습니다.");
+            throw new ExceptionHandler(ErrorStatus.PREFERENCE_LIMIT_EXCEEDED);
         }
 
         // 1. UserDevice 찾거나 신규 생성
