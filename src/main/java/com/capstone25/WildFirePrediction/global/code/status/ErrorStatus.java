@@ -32,7 +32,8 @@ public enum ErrorStatus implements BaseErrorCode {
     EMERGENCY_API_SERVICE_KEY_INVALID(HttpStatus.UNAUTHORIZED, "EMERGENCY401", "재난문자 API 서비스키가 유효하지 않습니다."),
     EMERGENCY_API_RESPONSE_INVALID(HttpStatus.BAD_REQUEST, "EMERGENCY400", "재난문자 API 응답 형식이 잘못되었습니다."),
     EMERGENCY_API_CALL_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "EMERGENCY503", "재난문자 API 호출에 실패했습니다."),
-    EMERGENCY_API_TIMEOUT(HttpStatus.REQUEST_TIMEOUT, "EMERGENCY408", "재난문자 API 호출이 타임아웃 되었습니다.");
+    EMERGENCY_API_TIMEOUT(HttpStatus.REQUEST_TIMEOUT, "EMERGENCY408", "재난문자 API 호출이 타임아웃 되었습니다."),
+    EMERGENCY_DATA_LOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "EMERGENCY501", "재난문자 데이터 로드에 실패했습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
