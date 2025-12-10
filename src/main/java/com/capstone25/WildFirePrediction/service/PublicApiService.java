@@ -37,15 +37,13 @@ public class PublicApiService {
             log.info("[{}] API 호출 시작 - 페이지: {}, 페이지당 개수: {}", apiKey, pageNo, config.getPageSize());
 
             var uriSpec = safetyDataWebClient.get()
-                    .uri(uriBuilder -> {
-                        var builder = uriBuilder
+                    .uri(uriBuilder -> uriBuilder
                                 .path(config.getPath())
                                 .queryParam("serviceKey", config.getServiceKey())
                                 .queryParam("pageNo", pageNo)
                                 .queryParam("numOfRows", config.getPageSize())
-                                .queryParam(config.getFormatParamName(), "json");
-                        return builder.build();
-                    });
+                                .queryParam(config.getFormatParamName(), "json")
+                                .build());
 
             PublicApiResponse.PagedResponse<T> response = uriSpec
                     .retrieve()
