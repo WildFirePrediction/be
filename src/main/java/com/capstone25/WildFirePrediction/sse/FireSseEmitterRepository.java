@@ -45,7 +45,6 @@ public class FireSseEmitterRepository {
             } catch (IOException e) {
                 log.warn("SSE send 실패 - id: {}, error: {}", id, e.getMessage());
                 emitter.completeWithError(e);
-                emitters.remove(id);
             }
         });
     }
