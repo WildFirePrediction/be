@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -17,7 +18,15 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-@Table(name = "region")
+@Table(
+        name = "region",
+        indexes = {
+                @Index(
+                        name = "idx_region_sido_sigungu_eup",
+                        columnList = "sido, sigungu, eupmyeondong"
+                )
+        }
+)
 public class Region {
 
     @Id
