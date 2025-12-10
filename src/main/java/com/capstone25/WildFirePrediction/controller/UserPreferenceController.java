@@ -22,12 +22,14 @@ public class UserPreferenceController {
     private final UserPreferenceService userPreferenceService;
 
     @PostMapping
-    @Operation(summary = "유저 선호지역 설정", description = "최대 3개까지 설정 가능")
+    @Operation(summary = "유저 선호지역 설정",
+            description = "최대 3개까지 설정 가능<br>"
+                    + "UUID와 함께, 선호지역 ID 리스트를 요청 바디로 전달 (ex. [1, 2, 3])<br>"
+                    + "ID는 /regions/by-sido-sigungu 에서 확인가능")
     public ApiResponse<String> setPreferences(
             @RequestHeader("X-DEVICE-UUID")
             @Parameter(description = "기기 UUID", required = true)
             String deviceUuid,
-
             @RequestBody List<Long> regionIds
     ) {
         userPreferenceService.setPreferences(deviceUuid, regionIds);
@@ -35,7 +37,9 @@ public class UserPreferenceController {
     }
 
     @GetMapping
-    @Operation(summary = "유저 선호지역 조회")
+    @Operation(summary = "유저 선호지역 조회",
+            description = "설정된 선호지역 리스트를 반환<br>"
+                    + "UUID를 헤더로 전달")
     public ApiResponse<List<UserRegionPreference>> getPreferences(
             @RequestHeader("X-DEVICE-UUID")
             @Parameter(description = "기기 UUID", required = true)
