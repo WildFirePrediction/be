@@ -2,12 +2,8 @@ package com.capstone25.WildFirePrediction.service;
 
 import com.capstone25.WildFirePrediction.domain.WeatherWarning;
 import com.capstone25.WildFirePrediction.dto.WeatherWarningDto;
-import com.capstone25.WildFirePrediction.dto.response.PublicApiResponse;
 import com.capstone25.WildFirePrediction.dto.response.PublicApiResponse.PagedResponse;
-import com.capstone25.WildFirePrediction.global.code.status.ErrorStatus;
-import com.capstone25.WildFirePrediction.global.exception.handler.ExceptionHandler;
 import com.capstone25.WildFirePrediction.repository.WeatherWarningRepository;
-import jakarta.transaction.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -16,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
