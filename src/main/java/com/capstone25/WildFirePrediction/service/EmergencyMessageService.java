@@ -28,6 +28,9 @@ public class EmergencyMessageService {
     private final EmergencyMessageApiService emergencyMessageApiService;
     private final EmergencyMessageRepository emergencyMessageRepository;
 
+    private static final DateTimeFormatter CRT_DT_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
+    private static final DateTimeFormatter REG_YMD_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
+
     public void loadTodaysEmergencyMessages() {
         // 오늘 날짜 (YYYYMMDD)
         String today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
@@ -112,23 +115,13 @@ public class EmergencyMessageService {
                 .build();
     }
 
-    // CRT_DT 파싱 (yyyyMMddHHmmss 또는 yyyy-MM-dd HH:mm:ss)
+    // CRT_DT 파싱 (YYYY/MM/DD HH:mm:ss)
     private LocalDateTime parseDateTime(String dateTimeStr) {
         if (dateTimeStr == null || dateTimeStr.trim().isEmpty()) {
             return null;
         }
-
         try {
-            // 패턴1: 20231201123045
-            DateTimeFormatter formatter1 = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
-            if (dateTimeStr.length() == 14) {
-                return LocalDateTime.parse(dateTimeStr, formatter1);
-            }
-
-            // 패턴2: 2023-12-01 12:30:45
-            DateTimeFormatter formatter2 = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-            return LocalDateTime.parse(dateTimeStr.trim(), formatter2);
-
+            return LocalDateTime.parse(dateTimeStr.trim(), CRT_DT_FORMATTER);
         } catch (DateTimeParseException e) {
             log.warn("날짜 파싱 실패 (CRT_DT): '{}'", dateTimeStr);
             return null;
@@ -140,10 +133,8 @@ public class EmergencyMessageService {
         if (dateStr == null || dateStr.trim().isEmpty()) {
             return null;
         }
-
         try {
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd");
-            return LocalDate.parse(dateStr.trim(), formatter);
+            return LocalDate.parse(dateStr.trim(), REG_YMD_FORMATTER);
         } catch (DateTimeParseException e) {
             log.warn("날짜 파싱 실패 (REG_YMD): '{}'", dateStr);
             return null;
