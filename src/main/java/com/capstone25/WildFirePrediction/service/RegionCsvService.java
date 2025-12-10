@@ -21,6 +21,11 @@ public class RegionCsvService {
 
     @Transactional
     public int importRegionsFromCsv(MultipartFile file) throws Exception {
+        // 1. DB에서 모든 adminCode를 한 번에 조회하여 Set에 저장
+        java.util.Set<String> existingAdminCodes = regionRepository.findAll().stream()
+                .map(Region::getAdminCode)
+                .collect(java.util.stream.Collectors.toSet());
+
         List<Region> regions = new ArrayList<>();
 
         try(CSVReader reader = new CSVReaderBuilder(
@@ -35,14 +40,15 @@ public class RegionCsvService {
                 if (line.length < 4)    continue;
 
                 String adminCode = line[0].trim();
+
+                // 2. DB 쿼리 대신 메모리에서 존재 여부 확인
+                if (existingAdminCodes.contains(adminCode)) {
+                    continue;
+                }
+
                 String sido = line[1].trim();
                 String sigungu = line[2].trim();
                 String eupmyeondong = line[3].trim();
-
-                // 이미 존재하면 스킵
-                if (regionRepository.findByAdminCode(adminCode).isPresent()) {
-                    continue;
-                }
 
                 Region region = Region.builder()
                         .adminCode(adminCode)
@@ -52,6 +58,7 @@ public class RegionCsvService {
                         .build();
 
                 regions.add(region);
+                existingAdminCodes.add(adminCode); // 동일 파일 내 중복 레코드 방지
             }
         }
 
