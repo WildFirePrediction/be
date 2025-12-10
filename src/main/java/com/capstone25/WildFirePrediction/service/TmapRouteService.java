@@ -64,7 +64,7 @@ public class TmapRouteService {
         log.warn("⚠️ 경로 위험! 우회 경로 탐색...");
 
         // 4. 우회 경로 반환 (DB 공간인덱스 없어도 동작)
-        return findBypassRoute(request);
+        return findBypassRoute(request, originalRoute, dangerCells);
     }
 
     // TMAP API 호출해서 보행자 경로 받아오기
@@ -101,7 +101,8 @@ public class TmapRouteService {
     }
 
     // 우회 경로 계산
-    private RouteResponse findBypassRoute(RouteRequest request) {
+    private RouteResponse findBypassRoute(RouteRequest request, RouteResponse originalRoute,
+                                          List<AIPredictedCell> dangerCells) {
         // 위험 셀들의 중심점 계산
         double centerLat = (request.getStartLat() + request.getEndLat()) / 2;
         double centerLon = (request.getStartLon() + request.getEndLon()) / 2;
@@ -134,15 +135,14 @@ public class TmapRouteService {
             RouteResponse bypassRoute = parseRouteResponse(callTmapApi(bypassRequest));
 
             // 우회 경로도 안전한지 검사
-            List<AIPredictedCell> allDangerCells = findDangerCellsNearRoute(request);
-            if (GeoUtils.isRouteSafe(bypassRoute.getPath(), allDangerCells)) {
+            if (GeoUtils.isRouteSafe(bypassRoute.getPath(), dangerCells)) {
                 log.info("우회 성공! 방향 {} ({}): {}", i+1, getDirection(i), passList);
                 return bypassRoute;
             }
         }
 
         log.warn("모든 우회 실패 - 원본 경로 반환");
-        return getOriginalRoute(request);
+        return originalRoute;
     }
 
     // 방향 이름 매핑
