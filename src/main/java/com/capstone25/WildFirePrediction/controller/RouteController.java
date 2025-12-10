@@ -5,6 +5,7 @@ import com.capstone25.WildFirePrediction.dto.response.RouteResponse;
 import com.capstone25.WildFirePrediction.global.ApiResponse;
 import com.capstone25.WildFirePrediction.service.TmapRouteService;
 import io.swagger.v3.oas.annotations.Operation;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -14,12 +15,9 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 @RestController
 @RequestMapping("/routes")
+@RequiredArgsConstructor
 public class RouteController {
     private final TmapRouteService tmapRouteService;
-
-    public RouteController(TmapRouteService tmapRouteService) {
-        this.tmapRouteService = tmapRouteService;
-    }
 
     // 보행자 경로 조회
     @PostMapping("")
@@ -34,7 +32,7 @@ public class RouteController {
                 request.getStartLat(), request.getStartLon(),
                 request.getEndLat(), request.getEndLon());
 
-        RouteResponse response = tmapRouteService.getTmapRoute(request);
+        RouteResponse response = tmapRouteService.getSafeRoute(request);
 
         return ApiResponse.onSuccess(response);
     }
