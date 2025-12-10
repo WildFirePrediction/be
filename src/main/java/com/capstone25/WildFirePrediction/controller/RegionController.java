@@ -58,6 +58,11 @@ public class RegionController {
     public ApiResponse<List<RegionSearchResponse>> searchRegions(
             @RequestParam String keyword
     ) {
+        // 빈값이 들어올 경우 전체 조회 방지
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return ApiResponse.onSuccess(List.of());
+        }
+
         var regions = regionRepository
                 .findBySidoContainingOrSigunguContainingOrEupmyeondongContaining(
                         keyword, keyword, keyword
