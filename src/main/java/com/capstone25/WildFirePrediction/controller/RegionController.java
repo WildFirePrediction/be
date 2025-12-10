@@ -1,5 +1,6 @@
 package com.capstone25.WildFirePrediction.controller;
 
+import com.capstone25.WildFirePrediction.dto.response.RegionResponse;
 import com.capstone25.WildFirePrediction.global.ApiResponse;
 import com.capstone25.WildFirePrediction.repository.RegionRepository;
 import com.capstone25.WildFirePrediction.service.RegionCsvService;
@@ -55,7 +56,7 @@ public class RegionController {
                     "예) keyword=동작 → 동작구 포함 행 모두<br>" +
                     "예) keyword=흑석 → 흑석동 포함 행 모두"
     )
-    public ApiResponse<List<RegionSearchResponse>> searchRegions(
+    public ApiResponse<List<RegionResponse>> searchRegions(
             @RequestParam String keyword
     ) {
         // 빈값이 들어올 경우 전체 조회 방지
@@ -69,7 +70,7 @@ public class RegionController {
                 );
 
         var result = regions.stream()
-                .map(r -> new RegionSearchResponse(
+                .map(r -> new RegionResponse(
                         r.getId(),
                         r.getSido(),
                         r.getSigungu(),
@@ -79,13 +80,6 @@ public class RegionController {
 
         return ApiResponse.onSuccess(result);
     }
-
-    public record RegionSearchResponse(
-            Long id,
-            String sido,
-            String sigungu,
-            String eupmyeondong
-    ) {}
 
     @GetMapping("/sido-list")
     @Operation(summary = "시/도 목록 조회")
