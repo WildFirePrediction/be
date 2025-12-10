@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
@@ -20,10 +21,18 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-@Table(name = "weather_warning", indexes = {
-        @Index(name = "idx_weather_base_date", columnList = "baseDate"),
-        @Index(name = "idx_weather_title", columnList = "title")
-})
+@Table(name = "weather_warning",
+        indexes = {
+            @Index(name = "idx_weather_base_date", columnList = "baseDate"),
+            @Index(name = "idx_weather_title", columnList = "title")
+        },
+        uniqueConstraints = {
+            @UniqueConstraint(
+                name = "uk_weather_warning_unique",
+                columnNames = {"title", "baseDate", "presentationTime"}
+            )
+        }
+)
 public class WeatherWarning {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
