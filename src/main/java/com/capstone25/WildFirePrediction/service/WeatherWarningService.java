@@ -8,7 +8,6 @@ import com.capstone25.WildFirePrediction.repository.WeatherWarningRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -52,23 +51,37 @@ public class WeatherWarningService {
 
     public void loadWeatherWarningsByDate(String dateStr) {
         try {
-            WeatherWarningApiResponse response =
-                    weatherWarningApiService.fetchWeatherWarningPage(1, dateStr);
+            int pageNo = 1;
+            int totalSavedCount = 0;
+            int totalPages = 1; // 첫 페이지 조회 후 실제 값으로 업데이트
 
-            int totalCount = response.getTotalCount();
-            int pageSize = response.getNumOfRows();
-            log.info("[기상특보] API 응답 - totalCount: {}, numOfRows: {}, 실제 데이터: {}건",
-                    totalCount,
-                    pageSize,
-                    response.getBody() != null ? response.getBody().size() : 0);
+            do {
+                WeatherWarningApiResponse response =
+                        weatherWarningApiService.fetchWeatherWarningPage(pageNo, dateStr);
 
-            if (response.getBody() == null || response.getBody().isEmpty()) {
-                log.info("[기상특보] 수집할 데이터가 없습니다. inqDt={}", dateStr);
-                return;
-            }
+                if (response == null || response.getBody() == null || response.getBody().isEmpty()) {
+                    log.info("[기상특보] page {}에서 수집할 데이터가 없습니다. inqDt={}", pageNo, dateStr);
+                    break;
+                }
 
-            int savedCount = saveWeatherWarnings(response);
-            log.info("[기상특보] 동기화 완료 - inqDt={}, 신규: {}건", dateStr, savedCount);
+                if (pageNo == 1) {
+                    int totalCount = response.getTotalCount();
+                    int pageSize = response.getNumOfRows();
+                    log.info("[기상특보] API 응답 - totalCount: {}, numOfRows: {}, 실제 데이터: {}건",
+                            totalCount, pageSize, response.getBody().size());
+                    if (pageSize > 0) {
+                        totalPages = (int) Math.ceil((double) totalCount / pageSize);
+                    }
+                }
+
+                int savedCount = saveWeatherWarnings(response);
+                totalSavedCount += savedCount;
+                log.info("[기상특보] Page {}/{} 동기화 완료 - 신규: {}건", pageNo, totalPages, savedCount);
+
+                pageNo++;
+            } while (pageNo <= totalPages);
+
+            log.info("[기상특보] 전체 동기화 완료 - inqDt={}, 총 신규: {}건", dateStr, totalSavedCount);
         } catch (Exception e) {
             log.error("[기상특보] 동기화 실패 - inqDt={}", dateStr, e);
             throw new ExceptionHandler(ErrorStatus.WEATHER_WARNING_DATA_LOAD_FAILED);
@@ -128,10 +141,37 @@ public class WeatherWarningService {
     public void scheduledFetchWeatherWarnings() {
         log.info("[기상특보] 5분 주기 수집 시작");
         try {
-            WeatherWarningApiResponse response =
-                    weatherWarningApiService.fetchWeatherWarningPage(1, null);
-            int savedCount = saveWeatherWarnings(response);
-            log.info("[기상특보] 5분 주기 수집 완료 - 신규: {}건", savedCount);
+            int pageNo = 1;
+            int totalSavedCount = 0;
+            int totalPages = 1;
+
+            do {
+                WeatherWarningApiResponse response =
+                        weatherWarningApiService.fetchWeatherWarningPage(pageNo, null);
+
+                if (response == null || response.getBody() == null || response.getBody().isEmpty()) {
+                    log.info("[기상특보] 스케줄러 page {}에서 수집할 데이터가 없습니다.", pageNo);
+                    break;
+                }
+
+                if (pageNo == 1) {
+                    int totalCount = response.getTotalCount();
+                    int pageSize = response.getNumOfRows();
+                    log.info("[기상특보][스케줄러] API 응답 - totalCount: {}, numOfRows: {}, 실제 데이터: {}건",
+                            totalCount, pageSize, response.getBody().size());
+                    if (pageSize > 0) {
+                        totalPages = (int) Math.ceil((double) totalCount / pageSize);
+                    }
+                }
+
+                int savedCount = saveWeatherWarnings(response);
+                totalSavedCount += savedCount;
+                log.info("[기상특보][스케줄러] Page {}/{} 저장 완료 - 신규: {}건", pageNo, totalPages, savedCount);
+
+                pageNo++;
+            } while (pageNo <= totalPages);
+
+            log.info("[기상특보][스케줄러] 전체 수집 완료 - 총 신규: {}건", totalSavedCount);
         } catch (Exception e) {
             log.error("[기상특보] 스케줄링 수집 중 예외 발생", e);
         }
