@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -122,11 +123,11 @@ public class WeatherWarningService {
         for (WeatherWarningApiResponse.WeatherWarningData data : apiResponse.getBody()) {
             try {
                 WeatherWarning warning = convertToEntity(data);
-                if (!weatherWarningRepository.existsByPresentationTimeAndPresentationSerial(
-                        warning.getPresentationTime(), warning.getPresentationSerial())) {
-                    weatherWarningRepository.save(warning);
-                    savedCount++;
-                }
+                weatherWarningRepository.save(warning);
+                savedCount++;
+            } catch (DataIntegrityViolationException e) {
+                // unique 제약 위반 → 이미 저장된 데이터이므로 정상적인 중복 상황
+                log.trace("[기상특보] 중복 데이터 건너뜀: {}", data.getTitle());
             } catch (Exception e) {
                 log.error("[기상특보] 저장 실패: {}", data.getTitle(), e);
             }
