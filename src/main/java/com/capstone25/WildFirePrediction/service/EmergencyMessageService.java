@@ -3,6 +3,7 @@ package com.capstone25.WildFirePrediction.service;
 import com.capstone25.WildFirePrediction.domain.EmergencyMessage;
 import com.capstone25.WildFirePrediction.dto.EmergencyMessageDto;
 import com.capstone25.WildFirePrediction.dto.response.PublicApiResponse;
+import com.capstone25.WildFirePrediction.dto.response.PublicApiResponse.PagedResponse;
 import com.capstone25.WildFirePrediction.global.code.status.ErrorStatus;
 import com.capstone25.WildFirePrediction.global.exception.handler.ExceptionHandler;
 import com.capstone25.WildFirePrediction.repository.EmergencyMessageRepository;
@@ -28,53 +29,59 @@ public class EmergencyMessageService {
     @Transactional
     public void fetchAndSaveTodayMessages() {
         LocalDate today = LocalDate.now();
-        log.info("[재난문자] 오늘 데이터 수집 시작 - {}", today);
+        Long lastSn = emergencyMessageRepository.findTopByOrderBySerialNumberDesc()
+                .map(EmergencyMessage::getSerialNumber)
+                .orElse(0L);    // 마지막 저장된 SN 조회
 
-        // 1. 1페이지만 받아오고, 필요하면 나중에 2페이지 확장
-        PublicApiResponse.PagedResponse<EmergencyMessageDto> page =
-                emergencyMessageApiService.fetchPage(1);
+        log.info("[재난문자] 신규 데이터 수집 시작 - today: {}, lastSn: {}", today, lastSn);
 
-        if (page == null || page.getBody() == null || page.getBody().isEmpty()) {
-            log.info("[재난문자] 오늘 API 응답 비어 있음");
-            return;
-        }
-
-        List<EmergencyMessageDto> todayMessages = page.getBody().stream()
-                .filter(dto -> today.toString().equals(dto.getRegDate()))
-                .toList();
-
-        if (todayMessages.isEmpty()) {
-            log.info("[재난문자] 오늘 REG_YMD={} 인 데이터 없음", today);
-            return;
-        }
-
+        int pageNo = 1;
+        int maxPages = 10;  // 안전장치
         int saved = 0;
         int skipped = 0;
 
-        for (EmergencyMessageDto dto : todayMessages) {
-            try {
-                if (dto.getSerialNumber() == null) {
-                    log.warn("[재난문자] SN 누락 데이터 스킵: {}", dto.getMessageContent());
-                    skipped++;
-                    continue;
-                }
+        while (pageNo <= maxPages) {
+            PagedResponse<EmergencyMessageDto> page = emergencyMessageApiService.fetchPage(pageNo);
 
-                // 이미 저장된 SN이면 스킵
-                if (emergencyMessageRepository.existsBySerialNumber(dto.getSerialNumber())) {
-                    skipped++;
-                    continue;
-                }
-
-                EmergencyMessage entity = convertToEntity(dto);
-                emergencyMessageRepository.save(entity);
-                saved++;
-            } catch (Exception e) {
-                log.error("[재난문자] 저장 실패 - SN: {}", dto.getSerialNumber(), e);
-                throw new ExceptionHandler(ErrorStatus._INTERNAL_SERVER_ERROR);
+            if (page == null || page.getBody() == null || page.getBody().isEmpty()) {
+                log.info("[재난문자] page {} 응답 비어 있음 → 중단", pageNo);
+                break;
             }
+
+            // 1) 오늘 데이터만, 2) lastSn 이후 것만
+            List<EmergencyMessageDto> candidates = page.getBody().stream()
+                    .filter(dto -> dto.getSerialNumber() != null)
+                    .filter(dto -> today.toString().equals(dto.getRegDate()))
+                    .filter(dto -> dto.getSerialNumber() > lastSn)
+                    .toList();
+
+            if (candidates.isEmpty()) {
+                log.info("[재난문자] page {} 에서 신규(today & SN>{}) 데이터 없음 → 중단", pageNo, lastSn);
+                break;
+            }
+
+            for (EmergencyMessageDto dto : candidates) {
+                try {
+                    if (emergencyMessageRepository.existsBySerialNumber(dto.getSerialNumber())) {
+                        skipped++;
+                        continue;
+                    }
+
+                    EmergencyMessage entity = convertToEntity(dto);
+                    emergencyMessageRepository.save(entity);
+                    saved++;
+                } catch (Exception e) {
+                    log.error("[재난문자] 저장 실패 - SN: {}", dto.getSerialNumber(), e);
+                    throw new ExceptionHandler(ErrorStatus._INTERNAL_SERVER_ERROR);
+                }
+            }
+
+            log.info("[재난문자] page {} 처리 완료 - 신규 저장: {}, 중복 스킵: {}", pageNo, saved, skipped);
+
+            pageNo++;
         }
 
-        log.info("[재난문자] 오늘 데이터 수집 완료 - 저장: {}, 중복 스킵: {}", saved, skipped);
+        log.info("[재난문자] 신규 데이터 수집 종료 - 총 저장: {}, 중복 스킵: {}", saved, skipped);
     }
 
     private EmergencyMessage convertToEntity(EmergencyMessageDto dto) {

@@ -3,6 +3,7 @@ package com.capstone25.WildFirePrediction.service;
 import com.capstone25.WildFirePrediction.domain.WeatherWarning;
 import com.capstone25.WildFirePrediction.dto.WeatherWarningDto;
 import com.capstone25.WildFirePrediction.dto.response.PublicApiResponse;
+import com.capstone25.WildFirePrediction.dto.response.PublicApiResponse.PagedResponse;
 import com.capstone25.WildFirePrediction.global.code.status.ErrorStatus;
 import com.capstone25.WildFirePrediction.global.exception.handler.ExceptionHandler;
 import com.capstone25.WildFirePrediction.repository.WeatherWarningRepository;
@@ -30,50 +31,58 @@ public class WeatherWarningService {
         LocalDate today = LocalDate.now();
         log.info("[기상특보] 오늘 데이터 수집 시작 - {}", today);
 
-        PublicApiResponse.PagedResponse<WeatherWarningDto> page =
-                weatherWarningApiService.fetchPage(1);
-
-        if (page == null || page.getBody() == null || page.getBody().isEmpty()) {
-            log.info("[기상특보] 오늘 API 응답 비어 있음");
-            return;
-        }
-
-        List<WeatherWarningDto> todayWarnings = page.getBody().stream()
-                .filter(dto -> {
-                    // 기준일 또는 취득일 중 하나가 오늘인 것만 사용
-                    boolean baseMatch = today.toString().equals(dto.getBaseDate());
-                    boolean obtainedMatch = today.toString().equals(dto.getObtainedDate());
-                    return baseMatch || obtainedMatch;
-                })
-                .toList();
-
-        if (todayWarnings.isEmpty()) {
-            log.info("[기상특보] 오늘 데이터 없음 (baseDate/obtainedDate 기준)");
-            return;
-        }
-
+        int pageNo = 1;
+        int maxPages = 5;  // 안전장치
         int saved = 0;
         int skipped = 0;
 
-        for (WeatherWarningDto dto : todayWarnings) {
-            try {
-                WeatherWarning entity = convertToEntity(dto);
-                // 제목 + 기준일 + 발표시각 조합으로 중복 체크
-                if (weatherWarningRepository.existsByTitleAndBaseDateAndPresentationTime(
-                        entity.getTitle(), entity.getBaseDate(), entity.getPresentationTime())) {
-                    skipped++;
-                    continue;
-                }
+        while (pageNo <= maxPages) {
+            PagedResponse<WeatherWarningDto> page = weatherWarningApiService.fetchPage(pageNo);
 
-                weatherWarningRepository.save(entity);
-                saved++;
-            } catch (Exception e) {
-                log.error("[기상특보] 저장 실패 - title: {}", dto.getTitle(), e);
-                throw new ExceptionHandler(ErrorStatus._INTERNAL_SERVER_ERROR);
+            if (page == null || page.getBody() == null || page.getBody().isEmpty()) {
+                log.info("[기상특보] page {} 응답 비어 있음 → 중단", pageNo);
+                break;
             }
+
+            // 오늘 기준 필터 (기준일 or 취득일)
+            List<WeatherWarningDto> todayWarnings = page.getBody().stream()
+                    .filter(dto -> {
+                        boolean baseMatch = today.toString().equals(dto.getBaseDate());
+                        boolean obtainedMatch = today.toString().equals(dto.getObtainedDate());
+                        return baseMatch || obtainedMatch;
+                    })
+                    .toList();
+
+            if (todayWarnings.isEmpty()) {
+                log.info("[기상특보] page {} 에 오늘 데이터 없음 → 중단", pageNo);
+                break;
+            }
+
+            for (WeatherWarningDto dto : todayWarnings) {
+                try {
+                    WeatherWarning entity = convertToEntity(dto);
+
+                    // 제목 + 기준일 + 발표시각으로 중복 체크
+                    if (weatherWarningRepository.existsByTitleAndBaseDateAndPresentationTime(
+                            entity.getTitle(), entity.getBaseDate(), entity.getPresentationTime())) {
+                        skipped++;
+                        continue;
+                    }
+
+                    weatherWarningRepository.save(entity);
+                    saved++;
+                } catch (Exception e) {
+                    log.error("[기상특보] 저장 실패 - title: {}", dto.getTitle(), e);
+                    throw new ExceptionHandler(ErrorStatus._INTERNAL_SERVER_ERROR);
+                }
+            }
+
+            log.info("[기상특보] page {} 처리 완료 - 신규 저장: {}, 중복 스킵: {}", pageNo, saved, skipped);
+
+            pageNo++;
         }
 
-        log.info("[기상특보] 오늘 데이터 수집 완료 - 저장: {}, 중복 스킵: {}", saved, skipped);
+        log.info("[기상특보] 오늘 데이터 수집 종료 - 총 저장: {}, 중복 스킵: {}", saved, skipped);
     }
 
     private WeatherWarning convertToEntity(WeatherWarningDto dto) {
@@ -89,8 +98,7 @@ public class WeatherWarningService {
                 obtainedDate = LocalDate.parse(dto.getObtainedDate());
             }
             if (dto.getPresentationTime() != null && !dto.getPresentationTime().isBlank()) {
-                String trimmed = dto.getPresentationTime().trim();
-                prsTime = LocalDateTime.parse(trimmed, PRSNTN_TM_FORMATTER);
+                prsTime = LocalDateTime.parse(dto.getPresentationTime().trim(), PRSNTN_TM_FORMATTER);
             }
         } catch (Exception e) {
             log.warn("[기상특보] 날짜/시간 파싱 실패 - baseDate: {}, obtainedDate: {}, prsTime: {}",
