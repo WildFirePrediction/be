@@ -64,7 +64,9 @@ public class EmergencyMessageService {
             int savedCount = 0;
             int skippedCount = 0;
             for (int pageNo = 1; pageNo <= totalPages; pageNo++) {
-                List<EmergencyMessage> messagesToSave = processPage(pageNo, today, existingSerialNumbers);
+                int[] skippedHolder = new int[1];
+
+                List<EmergencyMessage> messagesToSave = processPage(pageNo, today, existingSerialNumbers, skippedHolder);
                 if (!messagesToSave.isEmpty()) {
                     emergencyMessageRepository.saveAll(messagesToSave);
                     savedCount += messagesToSave.size();
@@ -83,20 +85,27 @@ public class EmergencyMessageService {
     }
 
     // 페이지별 처리 (메모리 Set으로 O(1) 비교)
-    private List<EmergencyMessage> processPage(int pageNo, String today, Set<String> existingSerialNumbers) {
+    private List<EmergencyMessage> processPage(int pageNo, String today, Set<String> existingSerialNumbers, int[] skippedCountHolder) {
         EmergencyMessageApiResponse response = emergencyMessageApiService.fetchEmergencyMessagePage(pageNo, today, null);
         List<EmergencyMessage> messagesToSave = new ArrayList<>();
 
+        int skippedThisPage = 0;
+
         for (EmergencyMessageApiResponse.EmergencyMessageData data : response.getBody()) {
             String serialNumber = data.getSerialNumber();
-            if (serialNumber != null && !existingSerialNumbers.contains(serialNumber)) {
-                try {
-                    messagesToSave.add(convertToEntity(data));
-                } catch (Exception e) {
-                    log.error("페이지 {} 변환 실패: {}", pageNo, serialNumber, e);
-                }
+            if (serialNumber == null || existingSerialNumbers.contains(serialNumber)) {
+                skippedThisPage++;
+                continue;
+            }
+            try {
+                messagesToSave.add(convertToEntity(data));
+            } catch (Exception e) {
+                log.error("페이지 {} 변환 실패: {}", pageNo, serialNumber, e);
             }
         }
+
+        skippedCountHolder[0] += skippedThisPage; // 누적
+
         return messagesToSave;
     }
 
