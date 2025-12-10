@@ -1,5 +1,6 @@
 package com.capstone25.WildFirePrediction.controller;
 
+import com.capstone25.WildFirePrediction.dto.response.RegionResponse;
 import com.capstone25.WildFirePrediction.global.ApiResponse;
 import com.capstone25.WildFirePrediction.repository.RegionRepository;
 import com.capstone25.WildFirePrediction.service.RegionCsvService;
@@ -44,6 +45,40 @@ public class RegionController {
             description = "DB에 저장된 지역 정보 중 일부(10개)를 조회합니다.")
     public ApiResponse<?> getSampleRegions() {
         return ApiResponse.onSuccess(regionRepository.findAll().stream().limit(10).toList());
+    }
+
+    // 검색용
+    @GetMapping("/search")
+    @Operation(
+            summary = "지역 통합 검색",
+            description = "시/도, 시군구, 읍면동명을 모두 대상으로 부분 일치 검색합니다.<br>" +
+                    "예) keyword=서울 → 서울특별시 전체<br>" +
+                    "예) keyword=동작 → 동작구 포함 행 모두<br>" +
+                    "예) keyword=흑석 → 흑석동 포함 행 모두"
+    )
+    public ApiResponse<List<RegionResponse>> searchRegions(
+            @RequestParam String keyword
+    ) {
+        // 빈값이 들어올 경우 전체 조회 방지
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return ApiResponse.onSuccess(List.of());
+        }
+
+        var regions = regionRepository
+                .findBySidoContainingOrSigunguContainingOrEupmyeondongContaining(
+                        keyword, keyword, keyword
+                );
+
+        var result = regions.stream()
+                .map(r -> new RegionResponse(
+                        r.getId(),
+                        r.getSido(),
+                        r.getSigungu(),
+                        r.getEupmyeondong()
+                ))
+                .toList();
+
+        return ApiResponse.onSuccess(result);
     }
 
     @GetMapping("/sido-list")

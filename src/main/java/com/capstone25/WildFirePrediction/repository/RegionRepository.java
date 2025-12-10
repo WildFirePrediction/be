@@ -31,4 +31,11 @@ public interface RegionRepository extends JpaRepository<Region, Long> {
     Optional<Region> findBySidoAndSigunguAndEupmyeondong(
             String sido, String sigungu, String eupmyeondong
     );
+
+    // 키워드 검색
+    List<Region> findBySidoContainingOrSigunguContainingOrEupmyeondongContaining(
+            String sidoKeyword,
+            String sigunguKeyword,
+            String eupmyeondongKeyword
+    );
 }
