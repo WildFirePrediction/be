@@ -98,22 +98,18 @@ public class EmergencyMessageService {
     }
 
     private EmergencyMessage convertToEntity(EmergencyMessageApiResponse.EmergencyMessageData data) {
-        try {
-            LocalDateTime createdAt = parseDateTime(data.getCreatedAtStr());
-            LocalDate regDate = parseDate(data.getRegDateStr());
+        LocalDateTime createdAt = parseDateTime(data.getCreatedAtStr());
+        LocalDate regDate = parseDate(data.getRegDateStr());
 
-            return EmergencyMessage.builder()
-                    .serialNumber(data.getSerialNumber())
-                    .messageContent(data.getMessageContent())
-                    .regionName(data.getRegionName())
-                    .stepName(data.getStepName())
-                    .disasterTypeName(data.getDisasterTypeName())
-                    .createdAt(createdAt)
-                    .regDate(regDate)
-                    .build();
-        } catch (IllegalArgumentException e) {
-            throw new ExceptionHandler(ErrorStatus.EMERGENCY_API_RESPONSE_INVALID);
-        }
+        return EmergencyMessage.builder()
+                .serialNumber(data.getSerialNumber())
+                .messageContent(data.getMessageContent())
+                .regionName(data.getRegionName())
+                .stepName(data.getStepName())
+                .disasterTypeName(data.getDisasterTypeName())
+                .createdAt(createdAt)
+                .regDate(regDate)
+                .build();
     }
 
     // CRT_DT 파싱 (yyyyMMddHHmmss 또는 yyyy-MM-dd HH:mm:ss)
