@@ -8,6 +8,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -23,10 +25,22 @@ public class WeatherWarningService {
 
     private static final DateTimeFormatter PRSNTN_TM_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmm"); // "202312120130" 형식 가정
 
+    // 중복 체크용 키 클래스
+    record WarningKey(String title, LocalDate baseDate, LocalDateTime presentationTime) {}
+
     @Transactional
     public void fetchAndSaveTodayWarnings() {
         LocalDate today = LocalDate.now();
         log.info("[기상특보] 오늘 데이터 수집 시작 - {}", today);
+
+        // 1. 오늘 특보 전체를 한 번에 조회 (N+1 해결)
+        Set<WarningKey> existingKeys = weatherWarningRepository
+                .findByBaseDateOrObtainedDate(today, today)
+                .stream()
+                .map(this::toWarningKey)
+                .collect(Collectors.toSet());
+
+        log.info("[기상특보] 기존 오늘 특보 {}건 메모리 로드 완료", existingKeys.size());
 
         int pageNo = 1;
         int maxPages = 5;  // 안전장치
@@ -59,16 +73,17 @@ public class WeatherWarningService {
             for (WeatherWarningDto dto : todayWarnings) {
                 try {
                     WeatherWarning entity = convertToEntity(dto);
+                    WarningKey key = toWarningKey(entity);
 
-                    // 제목 + 기준일 + 발표시각으로 중복 체크
-                    if (weatherWarningRepository.existsByTitleAndBaseDateAndPresentationTime(
-                            entity.getTitle(), entity.getBaseDate(), entity.getPresentationTime())) {
+                    // 메모리에서 O(1) 체크
+                    if (existingKeys.contains(key)) {
                         skipped++;
                         continue;
                     }
 
                     weatherWarningRepository.save(entity);
                     saved++;
+                    existingKeys.add(key);  // 동적으로 업데이트
                 } catch (Exception e) {
                     log.error("[기상특보] 저장 실패 - title: {}, 메시지: {}", dto.getTitle(), e.getMessage(), e);
                     failed++;   // 실패해도 계속 진행
@@ -81,6 +96,15 @@ public class WeatherWarningService {
         }
 
         log.info("[기상특보] 오늘 데이터 수집 종료 - 총 저장: {}, 중복 스킵: {}, 실패: {}", saved, skipped, failed);
+    }
+
+    // 키 변환 헬퍼
+    private WarningKey toWarningKey(WeatherWarning entity) {
+        return new WarningKey(
+                entity.getTitle(),
+                entity.getBaseDate(),
+                entity.getPresentationTime()
+        );
     }
 
     private WeatherWarning convertToEntity(WeatherWarningDto dto) {

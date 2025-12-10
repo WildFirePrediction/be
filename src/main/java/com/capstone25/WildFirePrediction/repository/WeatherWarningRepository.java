@@ -3,6 +3,7 @@ package com.capstone25.WildFirePrediction.repository;
 import com.capstone25.WildFirePrediction.domain.WeatherWarning;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface WeatherWarningRepository extends JpaRepository<WeatherWarning, Long> {
@@ -16,4 +17,7 @@ public interface WeatherWarningRepository extends JpaRepository<WeatherWarning, 
 
     // 특정 기준일에 해당하는 특보 데이터 개수 조회
     long countByBaseDate(LocalDate baseDate);
+
+    // 오늘 특보 전체 조회 (N+1 문제 방지)
+    List<WeatherWarning> findByBaseDateOrObtainedDate(LocalDate baseDate, LocalDate obtainedDate);
 }
