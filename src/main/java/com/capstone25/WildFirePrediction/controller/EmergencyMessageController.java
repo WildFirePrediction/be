@@ -24,4 +24,14 @@ public class EmergencyMessageController {
         emergencyMessageService.loadTodaysEmergencyMessages();
         return ApiResponse.onSuccess("오늘 재난문자 수집 및 저장 완료");
     }
+
+    @PostMapping("/load-by-date")
+    @Operation(summary = "특정 일자 재난문자 데이터 수집 (서버용)",
+            description = "요청한 날짜(yyyyMMdd)를 crtDt로 사용해 재난문자 데이터를 조회하고, " +
+                    "이미 저장된 일련번호를 제외한 신규 데이터만 DB에 저장합니다.")
+    public ApiResponse<String> loadMessagesByDate(String date) {
+        // date 파라미터가 null/빈값이면 내부에서 오늘 날짜로 처리
+        emergencyMessageService.loadEmergencyMessagesByDate(date);
+        return ApiResponse.onSuccess("재난문자 수집 및 저장 완료 (crtDt=" + date + ")");
+    }
 }

@@ -31,21 +31,24 @@ public class EmergencyMessageService {
     private static final DateTimeFormatter CRT_DT_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
     private static final DateTimeFormatter REG_YMD_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
 
+    // (임시) 날짜 입력 받아서 해당 날짜 재난문자 데이터 수집
     public void loadTodaysEmergencyMessages() {
         // 오늘 날짜 (YYYYMMDD)
         String today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        log.info("오늘({}) 재난문자 동기화 시작", today);
+        loadEmergencyMessagesByDate(today);
+    }
 
+    public void loadEmergencyMessagesByDate(String dateStr) {
         try {
             // 1. 첫 페이지로 총 데이터 수 확인
-            EmergencyMessageApiResponse firstPage = emergencyMessageApiService.fetchEmergencyMessagePage(1, today, null);
+            EmergencyMessageApiResponse firstPage = emergencyMessageApiService.fetchEmergencyMessagePage(1, dateStr, null);
             int totalCount = firstPage.getTotalCount();
             int pageSize = firstPage.getNumOfRows();
             int totalPages = (int) Math.ceil((double) totalCount / pageSize);
 
-            log.info("오늘 재난문자 총 {}건 ({}페이지)", totalCount, totalPages);
+            log.info("재난문자 총 {}건 ({}페이지)", totalCount, totalPages);
             if (totalCount == 0) {
-                log.info("오늘 발송된 재난문자가 없습니다.");
+                log.info("발송된 재난문자가 없습니다.");
                 return;
             }
 
@@ -66,20 +69,20 @@ public class EmergencyMessageService {
             for (int pageNo = 1; pageNo <= totalPages; pageNo++) {
                 int[] skippedHolder = new int[1];
 
-                List<EmergencyMessage> messagesToSave = processPage(pageNo, today, existingSerialNumbers, skippedHolder);
+                List<EmergencyMessage> messagesToSave = processPage(pageNo, dateStr, existingSerialNumbers, skippedHolder);
                 if (!messagesToSave.isEmpty()) {
                     emergencyMessageRepository.saveAll(messagesToSave);
                     savedCount += messagesToSave.size();
                     // 저장된 serialNumber를 Set에 추가 (중복 방지)
                     messagesToSave.forEach(msg -> existingSerialNumbers.add(msg.getSerialNumber()));
                 }
-                skippedCount += pageSize - messagesToSave.size();
+                skippedCount += skippedHolder[0];
                 log.info("페이지 {} 저장: {}건 (누적: {})", pageNo, messagesToSave.size(), savedCount);
             }
 
-            log.info("오늘 재난문자 동기화 완료 - 신규: {}건, 중복: {}건", savedCount, skippedCount);
+            log.info("재난문자 동기화 완료 - crtDt={}, 신규: {}건, 중복: {}건", dateStr, savedCount, skippedCount);
         } catch (Exception e) {
-            log.error("오늘 재난문자 동기화 실패", e);
+            log.error("재난문자 동기화 실패", e);
             throw new ExceptionHandler(ErrorStatus.EMERGENCY_DATA_LOAD_FAILED);
         }
     }
