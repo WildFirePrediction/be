@@ -142,39 +142,11 @@ public class WeatherWarningService {
     public void scheduledFetchWeatherWarnings() {
         log.info("[기상특보] 5분 주기 수집 시작");
         try {
-            int pageNo = 1;
-            int totalSavedCount = 0;
-            int totalPages = 1;
-
-            do {
-                WeatherWarningApiResponse response =
-                        weatherWarningApiService.fetchWeatherWarningPage(pageNo, null);
-
-                if (response == null || response.getBody() == null || response.getBody().isEmpty()) {
-                    log.info("[기상특보] 스케줄러 page {}에서 수집할 데이터가 없습니다.", pageNo);
-                    break;
-                }
-
-                if (pageNo == 1) {
-                    int totalCount = response.getTotalCount();
-                    int pageSize = response.getNumOfRows();
-                    log.info("[기상특보][스케줄러] API 응답 - totalCount: {}, numOfRows: {}, 실제 데이터: {}건",
-                            totalCount, pageSize, response.getBody().size());
-                    if (pageSize > 0) {
-                        totalPages = (int) Math.ceil((double) totalCount / pageSize);
-                    }
-                }
-
-                int savedCount = saveWeatherWarnings(response);
-                totalSavedCount += savedCount;
-                log.info("[기상특보][스케줄러] Page {}/{} 저장 완료 - 신규: {}건", pageNo, totalPages, savedCount);
-
-                pageNo++;
-            } while (pageNo <= totalPages);
-
-            log.info("[기상특보][스케줄러] 전체 수집 완료 - 총 신규: {}건", totalSavedCount);
+            loadTodaysWeatherWarnings();
+            log.info("[기상특보] 5분 주기 수집 완료");
         } catch (Exception e) {
             log.error("[기상특보] 스케줄링 수집 중 예외 발생", e);
+            // 다음 실행까지 계속 동작 보장
         }
     }
 }
