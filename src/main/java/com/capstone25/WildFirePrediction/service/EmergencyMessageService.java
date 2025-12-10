@@ -26,53 +26,58 @@ public class EmergencyMessageService {
     private final EmergencyMessageRepository emergencyMessageRepository;
 
     public void loadTodaysEmergencyMessages() {
-        // 1. 오늘 날짜 (YYYYMMDD)
+        // 오늘 날짜 (YYYYMMDD)
         String today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         log.info("오늘({}) 재난문자 동기화 시작", today);
 
         try {
-            // 2. 오늘 데이터 전체 가져오기
-            EmergencyMessageApiResponse response = emergencyMessageApiService.fetchEmergencyMessagePage(1, today, null);
-            int totalCount = response.getTotalCount();
+            // 1. 첫 페이지로 총 데이터 수 확인
+            EmergencyMessageApiResponse firstPage = emergencyMessageApiService.fetchEmergencyMessagePage(1, today, null);
+            int totalCount = firstPage.getTotalCount();
+            int pageSize = firstPage.getNumOfRows();
+            int totalPages = (int) Math.ceil((double) totalCount / pageSize);
 
-            log.info("오늘 재난문자 총 {}건 조회", totalCount);
-
+            log.info("오늘 재난문자 총 {}건 ({}페이지)", totalCount, totalPages);
             if (totalCount == 0) {
                 log.info("오늘 발송된 재난문자가 없습니다.");
                 return;
             }
 
-            // 3. DB에 저장
-            List<EmergencyMessageApiResponse.EmergencyMessageData> messageDataList = response.getBody();
+            // 2. 모든 페이지 순회
             int savedCount = 0;
             int skippedCount = 0;
+            for(int pageNo = 1; pageNo <= totalPages; pageNo++) {
+                EmergencyMessageApiResponse response = emergencyMessageApiService.fetchEmergencyMessagePage(pageNo, today, null);
+                List<EmergencyMessageApiResponse.EmergencyMessageData> messageDataList = response.getBody();
 
-            List<EmergencyMessage> messagesToSave = new ArrayList<>();
-            for (EmergencyMessageApiResponse.EmergencyMessageData data : messageDataList) {
-                try {
-                    EmergencyMessage message = convertToEntity(data);
+                if (messageDataList == null || messageDataList.isEmpty()) {
+                    log.warn("페이지 {} 비어있음", pageNo);
+                    continue;
+                }
 
-                    // 중복 체크 (SerialNumber 기준)
-                    if (emergencyMessageRepository.existsBySerialNumber(message.getSerialNumber())) {
-                        skippedCount++;
-                        log.debug("중복 스킵: {}", message.getSerialNumber());
-                        continue;
+                // 3. 현재 페이지 데이터 처리
+                List<EmergencyMessage> messagesToSave = new ArrayList<>();
+                for (EmergencyMessageApiResponse.EmergencyMessageData data : messageDataList) {
+                    try {
+                        EmergencyMessage message = convertToEntity(data);
+                        if (emergencyMessageRepository.existsBySerialNumber(message.getSerialNumber())) {
+                            skippedCount++;
+                            continue;
+                        }
+                        messagesToSave.add(message);
+                    } catch (Exception e) {
+                        log.error("페이지 {} 데이터 변환 실패: {}", pageNo, data.getSerialNumber(), e);
                     }
+                }
 
-                    messagesToSave.add(message);
-                } catch (Exception e) {
-                    log.error("데이터 변환 실패: {}", data.getSerialNumber(), e);
+                // 4. 배치 저장
+                if (!messagesToSave.isEmpty()) {
+                    emergencyMessageRepository.saveAll(messagesToSave);
+                    savedCount += messagesToSave.size();
+                    log.info("페이지 {} 저장: {}건 (누적: {})", pageNo, messagesToSave.size(), savedCount);
                 }
             }
-
-            // 4. 신규 데이터만 저장
-            if (!messagesToSave.isEmpty()) {
-                emergencyMessageRepository.saveAll(messagesToSave);
-                savedCount = messagesToSave.size();
-                log.info("오늘 재난문자 저장 완료: {}건 신규 / {}건 중복", savedCount, skippedCount);
-            } else {
-                log.info("오늘 재난문자 모두 중복되어 저장없음 (총 {}건 중복)", skippedCount);
-            }
+            log.info("오늘 재난문자 동기화 완료 - 신규: {}건, 중복: {}건 (총 {}건)", savedCount, skippedCount, totalCount);
         } catch (Exception e) {
             log.error("오늘 재난문자 동기화 실패", e);
             throw new ExceptionHandler(ErrorStatus.EMERGENCY_DATA_LOAD_FAILED);
