@@ -2,10 +2,7 @@ package com.capstone25.WildFirePrediction.service;
 
 import com.capstone25.WildFirePrediction.domain.EmergencyMessage;
 import com.capstone25.WildFirePrediction.dto.EmergencyMessageDto;
-import com.capstone25.WildFirePrediction.dto.response.PublicApiResponse;
 import com.capstone25.WildFirePrediction.dto.response.PublicApiResponse.PagedResponse;
-import com.capstone25.WildFirePrediction.global.code.status.ErrorStatus;
-import com.capstone25.WildFirePrediction.global.exception.handler.ExceptionHandler;
 import com.capstone25.WildFirePrediction.repository.EmergencyMessageRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
