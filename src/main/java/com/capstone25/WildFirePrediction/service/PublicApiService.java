@@ -42,13 +42,8 @@ public class PublicApiService {
                                 .path(config.getPath())
                                 .queryParam("serviceKey", config.getServiceKey())
                                 .queryParam("pageNo", pageNo)
-                                .queryParam("numOfRows", config.getPageSize());
-                        // 대피소는 returnType, 재난/기상은 type 등으로 다를 수 있으니 분기
-                        if ("shelter".equals(apiKey)) {
-                            builder.queryParam("returnType", "json");
-                        } else {
-                            builder.queryParam("type", "json");
-                        }
+                                .queryParam("numOfRows", config.getPageSize())
+                                .queryParam(config.getFormatParamName(), "json");
                         return builder.build();
                     });
 

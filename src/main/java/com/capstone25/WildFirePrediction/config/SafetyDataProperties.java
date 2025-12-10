@@ -21,5 +21,6 @@ public class SafetyDataProperties {
         private String path;
         private String serviceKey;
         private int pageSize;
+        private String formatParamName = "type";  // 기본값 "type"
     }
 }
