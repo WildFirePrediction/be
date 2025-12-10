@@ -3,17 +3,24 @@ package com.capstone25.WildFirePrediction.service;
 import com.capstone25.WildFirePrediction.domain.AIPredictedCell;
 import com.capstone25.WildFirePrediction.domain.AIPredictionFire;
 import com.capstone25.WildFirePrediction.domain.enums.FireStatus;
+import com.capstone25.WildFirePrediction.dto.request.AIPredictionRequest.FireLocationDto;
 import com.capstone25.WildFirePrediction.dto.request.AIPredictionRequest.FirePredictionRequestDto;
 import com.capstone25.WildFirePrediction.dto.request.AIPredictionRequest.PredictedCellDto;
 import com.capstone25.WildFirePrediction.dto.request.AIPredictionRequest.PredictionDto;
 import com.capstone25.WildFirePrediction.repository.AIPredictedCellRepository;
 import com.capstone25.WildFirePrediction.repository.AIPredictionFireRepository;
+import com.capstone25.WildFirePrediction.sse.FireSseEmitterRepository;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Slf4j
 @Service
@@ -23,6 +30,7 @@ public class AIPredictionService {
 
     private final AIPredictionFireRepository fireRepository;
     private final AIPredictedCellRepository cellRepository;
+    private final FireSseEmitterRepository fireSseEmitterRepository;
 
     // AI 수신 데이터 비동기 처리
     @Async("aiPredictionExecutor")
@@ -110,6 +118,9 @@ public class AIPredictionService {
 
         log.info("화재 예측 데이터 저장 완료 - fireId: {}, 예측 셀 개수: {}",
                 fireId, savedFire.getPredictedCells().size());
+
+        // 5. SSE 발송 (트랜잭션 커밋 후)
+        registerAfterCommitSse(requestDto, "fire_prediction");
     }
 
     // 화재 종료 처리 (event_type = 1)
@@ -149,6 +160,9 @@ public class AIPredictionService {
         fireRepository.save(fire);
         log.info("화재 종료 처리 완료 - fireId: {}, endReason: {}",
                 fireId, requestDto.getEndReason());
+
+        // 6. SSE 발송 (트랜잭션 커밋 후)
+        registerAfterCommitSse(requestDto, "fire_end");
     }
 
     // 예측 데이터 검증
@@ -178,6 +192,89 @@ public class AIPredictionService {
         }
 
         return true;
+    }
+
+    // 진행 중 화재 예측을 FirePredictionRequestDto 리스트로 반환
+    @Transactional(readOnly = true)
+    public List<FirePredictionRequestDto> getActiveFirePredictionsAsRequestDto() {
+        // 1. 진행 중 화재 조회
+        List<AIPredictionFire> fires = fireRepository.findAllProgressFiresWithCells();
+
+        // 2. 엔티티 -> FirePredictionRequestDto 변환
+        return fires.stream()
+                .map(this::toFirePredictionRequestDto)
+                .collect(Collectors.toList());
+    }
+
+    // Fire 엔티티 -> FirePredictionRequestDto 변환
+    private FirePredictionRequestDto toFirePredictionRequestDto(AIPredictionFire fire) {
+
+        // fire_location
+        FireLocationDto locationDto = FireLocationDto.builder()
+                .lat(fire.getFireLatitude())
+                .lon(fire.getFireLongitude())
+                .build();
+
+        // AIPredictedCell -> PredictionDto (timestep별 그룹핑)
+        Map<Integer, List<AIPredictedCell>> byTimeStep = fire.getPredictedCells().stream()
+                .collect(Collectors.groupingBy(AIPredictedCell::getTimeStep));
+
+        List<PredictionDto> predictionDtos = byTimeStep.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey()) // timestep 오름차순
+                .map(entry -> {
+                    Integer timestep = entry.getKey();
+                    List<AIPredictedCell> cells = entry.getValue();
+
+                    String timestamp = cells.get(0).getPredictedTimestamp();
+
+                    List<PredictedCellDto> cellDtos = cells.stream()
+                            .map(cell -> PredictedCellDto.builder()
+                                    .lat(cell.getLatitude())
+                                    .lon(cell.getLongitude())
+                                    .probability(cell.getProbability())
+                                    .build())
+                            .collect(Collectors.toList());
+
+                    return PredictionDto.builder()
+                            .timestep(timestep)
+                            .timestamp(timestamp)
+                            .predictedCells(cellDtos)
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        // FirePredictionRequestDto 생성 (event_type = "0" 고정)
+        return FirePredictionRequestDto.builder()
+                .eventType("0")
+                .fireId(fire.getFireId())
+                .fireLocation(locationDto)
+                .fireTimestamp(fire.getFireTimestamp())
+                .inferenceTimestamp(fire.getInferenceTimestamp())
+                .model(fire.getModel())
+                .predictions(predictionDtos)
+                // 종료 관련 필드는 진행 중이므로 null
+                .endedTimestamp(null)
+                .completionTimestamp(null)
+                .endReason(null)
+                .lastStatus(null)
+                .lastStatusCode(null)
+                .build();
+    }
+
+    // SSE 발송용 유틸 메서드
+    private void registerAfterCommitSse(FirePredictionRequestDto requestDto, String eventName) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    log.info("트랜잭션 커밋 후 SSE 발행 - fireId: {}, event: {}", requestDto.getFireId(), eventName);
+                    fireSseEmitterRepository.sendToAll(requestDto, eventName);
+                }
+            });
+        } else {
+            // 트랜잭션이 없으면 바로 발행
+            fireSseEmitterRepository.sendToAll(requestDto, eventName);
+        }
     }
 
     // DTO -> Fire 엔티티 변환
