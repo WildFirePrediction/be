@@ -1,7 +1,8 @@
 package com.capstone25.WildFirePrediction.service;
 
 import com.capstone25.WildFirePrediction.domain.Shelter;
-import com.capstone25.WildFirePrediction.dto.response.ShelterApiResponse;
+import com.capstone25.WildFirePrediction.dto.response.PublicApiResponse;
+import com.capstone25.WildFirePrediction.dto.ShelterDto;
 import com.capstone25.WildFirePrediction.global.code.status.ErrorStatus;
 import com.capstone25.WildFirePrediction.global.exception.handler.ExceptionHandler;
 import com.capstone25.WildFirePrediction.repository.ShelterRepository;
@@ -27,7 +28,7 @@ public class ShelterService {
 
         try {
             // 1. 첫 번째 페이지로 총 데이터 수 확인
-            ShelterApiResponse firstPage = shelterApiService.fetchShelterPage(1);
+            PublicApiResponse.PagedResponse<ShelterDto> firstPage = shelterApiService.fetchShelterPage(1);
             int totalCount = firstPage.getTotalCount();
             int pageSize = firstPage.getNumOfRows();
             int totalPages = (int) Math.ceil((double) totalCount / pageSize);
@@ -39,8 +40,8 @@ public class ShelterService {
 
             // 2. 모든 페이지 순회
             for (int pageNo = 1; pageNo <= totalPages; pageNo++) {
-                ShelterApiResponse response = shelterApiService.fetchShelterPage(pageNo);
-                List<ShelterApiResponse.ShelterData> shelterDataList = response.getBody();
+                PublicApiResponse.PagedResponse<ShelterDto> response = shelterApiService.fetchShelterPage(pageNo);
+                List<ShelterDto> shelterDataList = response.getBody();
 
                 if (shelterDataList == null || shelterDataList.isEmpty()) {
                     log.info("페이지 {}에서 데이터가 없음", pageNo);
@@ -49,7 +50,7 @@ public class ShelterService {
 
                 // 3. DTO -> Entity 변환 및 중복 체크 후 저장
                 List<Shelter> sheltersToSave = new ArrayList<>();
-                for (ShelterApiResponse.ShelterData data : shelterDataList) {
+                for (ShelterDto data : shelterDataList) {
                     try {
                         // 대피소 타입 필터링 (3, 4만 저장)
                         if (!"3".equals(data.getShelterTypeCode()) && !"4".equals(data.getShelterTypeCode())) {
@@ -87,7 +88,7 @@ public class ShelterService {
     }
 
     // API 응답 DTO -> Entity 변환
-    private Shelter convertToEntity(ShelterApiResponse.ShelterData data) {
+    private Shelter convertToEntity(ShelterDto data) {
         try {
             // String → Double 변환 (유효성 검사 포함)
             Double latitude = parseCoordinate(data.getLatitude());
