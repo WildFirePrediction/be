@@ -5,6 +5,8 @@ import com.capstone25.WildFirePrediction.dto.response.EmergencyMessageApiRespons
 import com.capstone25.WildFirePrediction.global.code.status.ErrorStatus;
 import com.capstone25.WildFirePrediction.global.exception.handler.ExceptionHandler;
 import com.capstone25.WildFirePrediction.repository.EmergencyMessageRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -30,6 +32,33 @@ public class EmergencyMessageService {
 
     private static final DateTimeFormatter CRT_DT_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
     private static final DateTimeFormatter REG_YMD_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+
+    // 원시 재난문자 데이터 조회 (테스트용 - JSON 그대로 반환)
+    public String loadRawEmergencyMessages(String dateStr) {
+        log.info("원시 재난문자 조회 시작 - crtDt: {}", dateStr);
+
+        try {
+            EmergencyMessageApiResponse response =
+                    emergencyMessageApiService.fetchEmergencyMessagePage(1, dateStr, null);
+
+            int totalCount = response.getTotalCount();
+            int pageSize = response.getNumOfRows();
+
+            log.info("API 응답 - totalCount: {}, numOfRows: {}, 실제 데이터: {}건",
+                    totalCount, pageSize,
+                    response.getBody() != null ? response.getBody().size() : 0);
+
+            // JSON으로 변환해서 리턴
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.enable(SerializationFeature.INDENT_OUTPUT); // 보기 좋게
+
+            return mapper.writeValueAsString(response);
+
+        } catch (Exception e) {
+            log.error("원시 재난문자 조회 실패 - crtDt: {}", dateStr, e);
+            return "{ \"error\": \"" + e.getMessage() + "\" }";
+        }
+    }
 
     // (임시) 날짜 입력 받아서 해당 날짜 재난문자 데이터 수집
     public void loadTodaysEmergencyMessages() {

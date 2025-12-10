@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -33,5 +34,14 @@ public class EmergencyMessageController {
         // date 파라미터가 null/빈값이면 내부에서 오늘 날짜로 처리
         emergencyMessageService.loadEmergencyMessagesByDate(date);
         return ApiResponse.onSuccess("재난문자 수집 및 저장 완료 (crtDt=" + date + ")");
+    }
+
+    @PostMapping("/load-raw")
+    @Operation(summary = "원시 재난문자 데이터 조회 (테스트용)",
+            description = "입력한 날짜(yyyyMMdd)로 공공 API를 호출하여 " +
+                    "응답 JSON을 그대로 String으로 반환합니다. DB 저장하지 않습니다.")
+    public ApiResponse<String> loadRawMessages(@RequestParam String date) {
+        String rawJson = emergencyMessageService.loadRawEmergencyMessages(date);
+        return ApiResponse.onSuccess(rawJson);
     }
 }
