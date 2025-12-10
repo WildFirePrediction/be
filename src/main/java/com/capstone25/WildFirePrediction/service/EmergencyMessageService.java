@@ -29,7 +29,7 @@ public class EmergencyMessageService {
     private final EmergencyMessageRepository emergencyMessageRepository;
 
     private static final DateTimeFormatter CRT_DT_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
-    private static final DateTimeFormatter REG_YMD_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private static final DateTimeFormatter REG_YMD_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
 
     public void loadTodaysEmergencyMessages() {
         // 오늘 날짜 (YYYYMMDD)
@@ -128,13 +128,15 @@ public class EmergencyMessageService {
         }
     }
 
-    // REG_YMD 파싱 (YYYYMMDD)
+    // REG_YMD 파싱 (예: "2025/12/10 15:32:09.000000000" → "2025/12/10")
     private LocalDate parseDate(String dateStr) {
         if (dateStr == null || dateStr.trim().isEmpty()) {
             return null;
         }
         try {
-            return LocalDate.parse(dateStr.trim(), REG_YMD_FORMATTER);
+            String trimmed = dateStr.trim();
+            String datePart = trimmed.split(" ")[0];  // "2025/12/10"
+            return LocalDate.parse(datePart, REG_YMD_FORMATTER);
         } catch (DateTimeParseException e) {
             log.warn("날짜 파싱 실패 (REG_YMD): '{}'", dateStr);
             return null;
