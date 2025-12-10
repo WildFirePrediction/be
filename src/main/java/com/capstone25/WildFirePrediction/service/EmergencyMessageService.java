@@ -39,6 +39,7 @@ public class EmergencyMessageService {
         int maxPages = 10;  // 안전장치
         int saved = 0;
         int skipped = 0;
+        int failed = 0;  // 실패 카운트
 
         while (pageNo <= maxPages) {
             PagedResponse<EmergencyMessageDto> page = emergencyMessageApiService.fetchPage(pageNo);
@@ -71,17 +72,17 @@ public class EmergencyMessageService {
                     emergencyMessageRepository.save(entity);
                     saved++;
                 } catch (Exception e) {
-                    log.error("[재난문자] 저장 실패 - SN: {}", dto.getSerialNumber(), e);
-                    throw new ExceptionHandler(ErrorStatus._INTERNAL_SERVER_ERROR);
+                    log.error("[재난문자] 저장 실패 - SN: {}, 메시지: {}", dto.getSerialNumber(), e.getMessage(), e);
+                    failed++;   // 실패해도 계속 진행
                 }
             }
 
-            log.info("[재난문자] page {} 처리 완료 - 신규 저장: {}, 중복 스킵: {}", pageNo, saved, skipped);
+            log.info("[재난문자] page {} 처리 완료 - 저장: {}, 스킵: {}, 실패: {}", pageNo, saved, skipped, failed);
 
             pageNo++;
         }
 
-        log.info("[재난문자] 신규 데이터 수집 종료 - 총 저장: {}, 중복 스킵: {}", saved, skipped);
+        log.info("[재난문자] 신규 데이터 수집 종료 - 총 저장: {}, 중복 스킵: {}, 실패: {}", saved, skipped, failed);
     }
 
     private EmergencyMessage convertToEntity(EmergencyMessageDto dto) {

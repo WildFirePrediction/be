@@ -35,6 +35,7 @@ public class WeatherWarningService {
         int maxPages = 5;  // 안전장치
         int saved = 0;
         int skipped = 0;
+        int failed = 0;  // 실패 카운트
 
         while (pageNo <= maxPages) {
             PagedResponse<WeatherWarningDto> page = weatherWarningApiService.fetchPage(pageNo);
@@ -72,17 +73,17 @@ public class WeatherWarningService {
                     weatherWarningRepository.save(entity);
                     saved++;
                 } catch (Exception e) {
-                    log.error("[기상특보] 저장 실패 - title: {}", dto.getTitle(), e);
-                    throw new ExceptionHandler(ErrorStatus._INTERNAL_SERVER_ERROR);
+                    log.error("[기상특보] 저장 실패 - title: {}, 메시지: {}", dto.getTitle(), e.getMessage(), e);
+                    failed++;   // 실패해도 계속 진행
                 }
             }
 
-            log.info("[기상특보] page {} 처리 완료 - 신규 저장: {}, 중복 스킵: {}", pageNo, saved, skipped);
+            log.info("[기상특보] page {} 처리 완료 - 저장: {}, 스킵: {}, 실패: {}", pageNo, saved, skipped, failed);
 
             pageNo++;
         }
 
-        log.info("[기상특보] 오늘 데이터 수집 종료 - 총 저장: {}, 중복 스킵: {}", saved, skipped);
+        log.info("[기상특보] 오늘 데이터 수집 종료 - 총 저장: {}, 중복 스킵: {}, 실패: {}", saved, skipped, failed);
     }
 
     private WeatherWarning convertToEntity(WeatherWarningDto dto) {
