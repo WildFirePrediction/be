@@ -36,17 +36,19 @@ public class UserPreferenceService {
         preferenceRepository.deleteByUserDevice(userDevice);
 
         // 3. 새로운 preferences 저장
-        for (Long regionId : regionIds) {
-            Region region = regionRepository.findById(regionId)
-                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 지역입니다."));
-
-            UserRegionPreference pref = UserRegionPreference.builder()
-                    .userDevice(userDevice)
-                    .region(region)
-                    .build();
-
-            preferenceRepository.save(pref);
+        List<Region> regions = regionRepository.findAllById(regionIds);
+        if (regions.size() != regionIds.size()) {
+            throw new IllegalArgumentException("존재하지 않는 지역 ID가 포함되어 있습니다.");
         }
+
+        List<UserRegionPreference> preferencesToSave = regions.stream()
+                .map(region -> UserRegionPreference.builder()
+                        .userDevice(userDevice)
+                        .region(region)
+                        .build())
+                .toList();
+
+        preferenceRepository.saveAll(preferencesToSave);
     }
 
     // 선호지역 조회
