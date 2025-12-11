@@ -2,9 +2,11 @@ package com.capstone25.WildFirePrediction.service;
 
 import com.capstone25.WildFirePrediction.domain.EmergencyMessage;
 import com.capstone25.WildFirePrediction.domain.Region;
+import com.capstone25.WildFirePrediction.domain.WeatherWarning;
 import com.capstone25.WildFirePrediction.dto.response.RegionResponse;
 import com.capstone25.WildFirePrediction.repository.EmergencyMessageRepository;
 import com.capstone25.WildFirePrediction.repository.RegionRepository;
+import com.capstone25.WildFirePrediction.repository.WeatherWarningRepository;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVReaderBuilder;
 import java.io.InputStreamReader;
@@ -23,6 +25,7 @@ public class RegionService {
 
     private final RegionRepository regionRepository;
     private final EmergencyMessageRepository emergencyMessageRepository;
+    private final WeatherWarningRepository weatherWarningRepository;
 
     @Transactional
     public int importRegionsFromCsv(MultipartFile file) throws Exception {
@@ -71,7 +74,7 @@ public class RegionService {
         return regions.size();
     }
 
-    // 지역별 재난문자 조회
+    // 지역별 재난문자&기상특보 조회
     @Transactional(readOnly = true)
     public RegionResponse.RegionDisasterDto getDisastersByRegionId(Long regionId) {
         Region region = regionRepository.findById(regionId)
@@ -79,16 +82,32 @@ public class RegionService {
 
         // 당일 재난문자 ID들 가져오기
         List<Long> emergencyIds = region.getEmergencyMessageIds();
-
         // 해당 ID들의 재난문자 조회 (IN 절, N+1 방지)
         List<EmergencyMessage> emergencies = emergencyMessageRepository.findAllById(emergencyIds);
-
         // 최신순 정렬
         emergencies.sort(Comparator.comparing(EmergencyMessage::getCreatedAt).reversed());
+
+        // 기상특보
+        List<String> warningKeys = region.getWeatherWarningIds();
+        List<WeatherWarning.WeatherWarningId> warningIds = warningKeys.stream()
+                .map(this::parseWarningKey)  // "108_202512110400_92" → WeatherWarningId
+                .toList();
+        List<WeatherWarning> warnings = weatherWarningRepository.findAllByIds(warningIds);
+        warnings.sort((a, b) -> b.getId().getPresentationTime().compareTo(a.getId().getPresentationTime()));
 
         return RegionResponse.RegionDisasterDto.builder()
                 .region(toRegionDto(region))
                 .emergencyMessages(emergencies)
+                .weatherWarnings(warnings)
+                .build();
+    }
+
+    private WeatherWarning.WeatherWarningId parseWarningKey(String key) {
+        String[] parts = key.split("_");
+        return WeatherWarning.WeatherWarningId.builder()
+                .branch(parts[0])
+                .presentationTime(parts[1])
+                .presentationSerial(parts[2])
                 .build();
     }
 

@@ -1,6 +1,7 @@
 package com.capstone25.WildFirePrediction.dto.response;
 
 import com.capstone25.WildFirePrediction.domain.EmergencyMessage;
+import com.capstone25.WildFirePrediction.domain.WeatherWarning;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,5 +24,6 @@ public class RegionResponse {
     public static class RegionDisasterDto {
         private RegionResponseDto region;
         private List<EmergencyMessage> emergencyMessages;
+        private List<WeatherWarning> weatherWarnings;
     }
 }

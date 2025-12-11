@@ -1,10 +1,13 @@
 package com.capstone25.WildFirePrediction.service;
 
+import com.capstone25.WildFirePrediction.domain.Region;
 import com.capstone25.WildFirePrediction.domain.WeatherWarning;
 import com.capstone25.WildFirePrediction.dto.response.WeatherWarningApiResponse;
 import com.capstone25.WildFirePrediction.global.code.status.ErrorStatus;
 import com.capstone25.WildFirePrediction.global.exception.handler.ExceptionHandler;
+import com.capstone25.WildFirePrediction.repository.RegionRepository;
 import com.capstone25.WildFirePrediction.repository.WeatherWarningRepository;
+import com.capstone25.WildFirePrediction.util.WeatherRegionParser;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
@@ -23,6 +26,8 @@ public class WeatherWarningService {
 
     private final WeatherWarningApiService weatherWarningApiService;
     private final WeatherWarningRepository weatherWarningRepository;
+    private final RegionRepository regionRepository;
+    private final WeatherRegionParser weatherRegionParser;
 
     private static final DateTimeFormatter PRSNTN_TM_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmm");
     private static final DateTimeFormatter INQ_DT_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
@@ -144,7 +149,10 @@ public class WeatherWarningService {
 
             try {
                 WeatherWarning warning = convertToEntity(data);
-                weatherWarningRepository.save(warning);
+
+                // 저장 후 바로 매핑
+                WeatherWarning saved = weatherWarningRepository.save(warning);
+                mapWarningToRegions(saved);
                 savedCount++;
             } catch (Exception e) {
                 log.error("[기상특보] 저장 실패: {}", data.getTitle(), e);
@@ -155,6 +163,27 @@ public class WeatherWarningService {
             log.info("[기상특보] {}건 저장 완료", savedCount);
         }
         return savedCount;
+    }
+
+    // 단일 특보 -> Region 매핑
+    private void mapWarningToRegions(WeatherWarning saved) {
+        List<String> sidoList = weatherRegionParser.extractSidoList(saved.getEffectiveStatusContent());
+
+        if (sidoList.isEmpty()) {
+            return;
+        }
+
+        String warningKey = buildWarningKey(saved);
+        for (String sido : sidoList) {
+            List<Region> regions = regionRepository.findBySido(sido);
+            regions.forEach(region -> region.addWeatherWarningId(warningKey));
+        }
+    }
+
+    // 특보 키 생성
+    private String buildWarningKey(WeatherWarning warning) {
+        WeatherWarning.WeatherWarningId id = warning.getId();
+        return id.getBranch() + "_" + id.getPresentationTime() + "_" + id.getPresentationSerial();
     }
 
     // 10분마다 최신 통보문 조회

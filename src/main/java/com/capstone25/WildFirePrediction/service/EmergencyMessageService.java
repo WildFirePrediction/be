@@ -244,13 +244,13 @@ public class EmergencyMessageService {
     @Scheduled(cron = "0 55 5 * * *")
     @Transactional
     public void scheduledResetRegionMappings() {
-        log.info("[재난문자] Region 매핑 초기화 시작 (새벽 5:55)");
+        log.info("[재난문자/기상특보] Region 매핑 초기화 시작 (새벽 5:55)");
         try {
             List<Region> regions = regionRepository.findAll();
             regions.forEach(Region::resetDisasterIds);
-            log.info("[재난문자] Region 매핑 초기화 완료 - 대상: {}개", regions.size());
+            log.info("[재난문자/기상특보] Region 매핑 초기화 완료 - 대상: {}개", regions.size());
         } catch (Exception e) {
-            log.error("[재난문자] Region 초기화 실패", e);
+            log.error("[재난문자/기상특보] Region 초기화 실패", e);
         }
     }
 }
