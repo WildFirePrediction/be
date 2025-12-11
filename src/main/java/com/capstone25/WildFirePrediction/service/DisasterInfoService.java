@@ -29,6 +29,8 @@ public class DisasterInfoService {
     private final WildFireRepository wildFireRepository;
     private final EarthquakeRepository earthquakeRepository;
 
+    private final ObjectMapper objectMapper;
+
     private static final DateTimeFormatter GNT_DT_FORMATTER = DateTimeFormatter.ofPattern(
             "yyyy/MM/dd HH:mm:ss.SSSSSSSSS");
     private static final DateTimeFormatter MAAS_DT_FORMATTER = DateTimeFormatter.ofPattern(
@@ -53,11 +55,9 @@ public class DisasterInfoService {
                     totalCount, pageSize,
                     response.getBody() != null ? response.getBody().size() : 0);
 
-            // JSON으로 변환해서 리턴
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.enable(SerializationFeature.INDENT_OUTPUT);
+            objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
 
-            return mapper.writeValueAsString(response);
+            return objectMapper.writeValueAsString(response);
 
         } catch (Exception e) {
             log.error("원시 산불 조회 실패 - startDt: {}", date, e);
@@ -204,9 +204,8 @@ public class DisasterInfoService {
         result.put("savedCount", saved);
         result.put("skippedCount", skipped);
 
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.enable(SerializationFeature.INDENT_OUTPUT);
-        return mapper.writeValueAsString(result);
+        objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
+        return objectMapper.writeValueAsString(result);
     }
 
     // 저장된 모든 산불 재난정보 조회
@@ -218,10 +217,9 @@ public class DisasterInfoService {
             log.info("총 {}건 조회됨", wildFires.size());
 
             // JSON으로 변환해서 리턴
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.enable(SerializationFeature.INDENT_OUTPUT);
+            objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
 
-            return mapper.writeValueAsString(wildFires);
+            return objectMapper.writeValueAsString(wildFires);
 
         } catch (Exception e) {
             log.error("산불 재난정보 조회 실패", e);
@@ -245,10 +243,9 @@ public class DisasterInfoService {
                     response.getBody() != null ? response.getBody().size() : 0);
 
             // JSON으로 변환해서 리턴
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.enable(SerializationFeature.INDENT_OUTPUT);
+            objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
 
-            return mapper.writeValueAsString(response);
+            return objectMapper.writeValueAsString(response);
 
         } catch (Exception e) {
             log.error("원시 지진 조회 실패", e);
@@ -386,9 +383,8 @@ public class DisasterInfoService {
         result.put("savedCount", saved);
         result.put("skippedCount", skipped);
 
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.enable(SerializationFeature.INDENT_OUTPUT);
-        return mapper.writeValueAsString(result);
+        objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
+        return objectMapper.writeValueAsString(result);
     }
 
     // 저장된 모든 지진 재난정보 조회
@@ -397,9 +393,8 @@ public class DisasterInfoService {
         try {
             List<Earthquake> eqs = earthquakeRepository.findAll();
             log.info("총 {}건 조회됨", eqs.size());
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.enable(SerializationFeature.INDENT_OUTPUT);
-            return mapper.writeValueAsString(eqs);
+            objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
+            return objectMapper.writeValueAsString(eqs);
         } catch (Exception e) {
             log.error("지진 재난정보 조회 실패", e);
             return "{ \"error\": \"" + e.getMessage() + "\" }";

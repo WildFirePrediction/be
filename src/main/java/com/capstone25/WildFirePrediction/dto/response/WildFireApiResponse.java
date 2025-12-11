@@ -1,7 +1,5 @@
 package com.capstone25.WildFirePrediction.dto.response;
 
-import com.capstone25.WildFirePrediction.dto.response.EmergencyMessageApiResponse.EmergencyMessageData;
-import com.capstone25.WildFirePrediction.dto.response.EmergencyMessageApiResponse.Header;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
