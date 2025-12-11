@@ -1,6 +1,8 @@
 package com.capstone25.WildFirePrediction.service;
 
 import com.capstone25.WildFirePrediction.domain.AIPredictedCell;
+import com.capstone25.WildFirePrediction.dto.CollisionGroup;
+import com.capstone25.WildFirePrediction.dto.CollisionPoint;
 import com.capstone25.WildFirePrediction.dto.request.RouteRequest;
 import com.capstone25.WildFirePrediction.dto.request.TmapApiRequest;
 import com.capstone25.WildFirePrediction.dto.response.RouteResponse;
@@ -41,6 +43,9 @@ public class TmapRouteService {
     private final RestTemplate restTemplate;
     private final AIPredictedCellRepository aiPredictedCellRepository;
 
+    private static final int MAX_BYPASS_ATTEMPTS = 3;
+
+
     // 안전 경로 조회
     public RouteResponse getSafeRoute(RouteRequest request) {
         log.info("안전 경로 조회 요청: ({}, {}) → ({}, {})",
@@ -63,8 +68,12 @@ public class TmapRouteService {
 
         log.warn("⚠️ 경로 위험! 우회 경로 탐색...");
 
-        // 4. 우회 경로 반환 (DB 공간인덱스 없어도 동작)
-        return findBypassRoute(request, originalRoute, dangerCells);
+        // 4. 우회 경로 반환
+        RouteResponse safeRoute = findBypassRoute(request, originalRoute, dangerCells);
+        log.info("최종 경로 - 거리: {}m, 시간: {}분, 안전여부: {}",
+                safeRoute.getTotalDistance(), safeRoute.getTotalTime(),
+                safeRoute != originalRoute ? "✅" : "⚠️");
+        return safeRoute;
     }
 
     // TMAP API 호출해서 보행자 경로 받아오기
@@ -100,118 +109,85 @@ public class TmapRouteService {
         return aiPredictedCellRepository.findCellsInBoundingBox(minLat, maxLat, minLon, maxLon);
     }
 
-    // 우회 경로 계산
-    private RouteResponse findBypassRoute(RouteRequest request, RouteResponse originalRoute,
-                                          List<AIPredictedCell> dangerCells) {
-        // 위험 셀 없으면 그냥 원본 반환
-        if (dangerCells == null || dangerCells.isEmpty()) {
-            log.info("위험 셀이 없어 우회 없이 원본 경로 반환");
+    // 정밀 충돌 기반 우회 경로 탐색 (반복 3회 최대)
+    private RouteResponse findBypassRoute(
+            RouteRequest request, RouteResponse originalRoute, List<AIPredictedCell> dangerCells) {
+        // 1. 실제 충돌 지점들 탐지
+        List<CollisionPoint> collisions = GeoUtils.findCollisionPoints(
+                originalRoute.getPath(), dangerCells);
+
+        if (collisions.isEmpty()) {
+            log.info("✅ 충돌 없음, 원본 경로 안전");
             return originalRoute;
         }
 
-        // 위험 박스 계산
-        double minLat =  90.0;
-        double maxLat = -90.0;
-        double minLon =  180.0;
-        double maxLon = -180.0;
+        // 2. 충돌 그룹화
+        List<CollisionGroup> groups = GeoUtils.groupCollisions(collisions, originalRoute.getPath());
+        log.info("충돌 그룹 {}개 생성", groups.size());
 
-        for (AIPredictedCell cell : dangerCells) {
-            double lat = cell.getLatitude();
-            double lon = cell.getLongitude();
-            if (lat < minLat) minLat = lat;
-            if (lat > maxLat) maxLat = lat;
-            if (lon < minLon) minLon = lon;
-            if (lon > maxLon) maxLon = lon;
-        }
+        // 3. 반복 우회 시도 (최대 3회)
+        for (int iteration = 1; iteration <= MAX_BYPASS_ATTEMPTS; iteration++) {
+            log.info("=== 우회 반복 {}/3 ===", iteration);
 
-        // 위험 박스에 약간 여유(200m 정도) 추가
-        double margin = 0.002; // ≒ 200m
-        minLat -= margin;
-        maxLat += margin;
-        minLon -= margin;
-        maxLon += margin;
+            // 4. passList 생성 (최대 5개 경유지)
+            String passList = GeoUtils.generatePassList(
+                    groups,
+                    request.getStartLon(), request.getStartLat(),
+                    request.getEndLon(), request.getEndLat(),
+                    dangerCells
+            );
 
-        double boxCenterLat = (minLat + maxLat) / 2.0;
-        double boxCenterLon = (minLon + maxLon) / 2.0;
+            log.info("생성된 passList: {}", passList);
 
-        // 박스 바깥 경유지 후보들 (약 2km 밖으로)
-        double d = 0.02; // 위도/경도 0.02도 ≒ 2km 근처 (서울 위도 기준 대략)
-
-        double[] north = { boxCenterLon, maxLat + d }; // 북쪽 바깥
-        double[] south = { boxCenterLon, minLat - d }; // 남쪽 바깥
-        double[] east  = { maxLon + d,   boxCenterLat }; // 동쪽 바깥
-        double[] west  = { minLon - d,   boxCenterLat }; // 서쪽 바깥
-
-        // 다중 경유지 패턴 정의 (최대 3개 경유지)
-        String passList1 = String.format(
-                "%.6f,%.6f_%.6f,%.6f_%.6f,%.6f",
-                south[0], south[1],
-                west[0],  west[1],
-                north[0], north[1]
-        ); // 남 → 서 → 북 (서남쪽으로 크게 돌아 위로)
-
-        String passList2 = String.format(
-                "%.6f,%.6f_%.6f,%.6f_%.6f,%.6f",
-                north[0], north[1],
-                east[0],  east[1],
-                south[0], south[1]
-        ); // 북 → 동 → 남
-
-        String passList3 = String.format(
-                "%.6f,%.6f_%.6f,%.6f",
-                west[0],  west[1],
-                south[0], south[1]
-        ); // 서 → 남 (2점만)
-
-        String passList4 = String.format(
-                "%.6f,%.6f_%.6f,%.6f",
-                east[0],  east[1],
-                north[0], north[1]
-        ); // 동 → 북 (2점만)
-
-        String[] passLists = { passList1, passList2, passList3, passList4 };
-
-        // 패턴별로 Tmap 우회 경로 시도
-        for (int i = 0; i < passLists.length; i++) {
-            String passList = passLists[i];
-            log.info("우회 패턴 {} 시도: passList={}", i + 1, passList);
-
-            TmapApiRequest bypassRequest = TmapApiRequest.builder()
-                    .startX(request.getStartLon())
-                    .startY(request.getStartLat())
-                    .endX(request.getEndLon())
-                    .endY(request.getEndLat())
-                    .passList(passList)   // 여러 경유지 사용
-                    .startName("현재 위치")
-                    .endName("대피소")
-                    .reqCoordType("WGS84GEO")
-                    .resCoordType("WGS84GEO")
-                    .searchOption(0)
-                    .build();
-
-            TmapApiResponse bypassResponse;
-            try {
-                bypassResponse = callTmapApi(bypassRequest);
-            } catch (Exception e) {
-                log.warn("우회 패턴 {} TMAP 호출 실패, 다음 패턴 시도: {}", i + 1, e.getMessage());
-                continue;
+            if (passList == null || passList.isEmpty()) {
+                log.warn("passList 생성 실패");
+                break;
             }
 
-            RouteResponse bypassRoute = parseRouteResponse(bypassResponse);
+            // 5. 경유지 포함 TMAP API 호출
+            RouteResponse bypassRoute = getRouteWithPassList(request, passList);
 
-            // 우회 경로도 안전한지 검사
+            // 6. 안전 검증
             if (GeoUtils.isRouteSafe(bypassRoute.getPath(), dangerCells)) {
-                log.info("✅ 우회 성공! 패턴 {} 사용, 총 거리: {}m, 시간: {}분",
-                        i + 1, bypassRoute.getTotalDistance(), bypassRoute.getTotalTime());
+                log.info("✅ 우회 성공! 반복 {}회, 경유지 {}, 거리: {}m",
+                        iteration, groups.size(), bypassRoute.getTotalDistance());
                 return bypassRoute;
             }
 
-            log.info("우회 패턴 {} 경로도 여전히 위험, 다음 패턴 시도", i + 1);
+            log.warn("반복 {}회 실패 - 재충돌 탐지", iteration);
+
+            // 7. 다음 반복을 위해 충돌 정보 업데이트
+            collisions = GeoUtils.findCollisionPoints(bypassRoute.getPath(), dangerCells);
+            groups = GeoUtils.groupCollisions(collisions, bypassRoute.getPath());
+
+            // 그룹이 없어졌으면 성공 (드문 경우)
+            if (groups.isEmpty()) {
+                log.info("✅ 우회 후 충돌 완전 제거!");
+                return bypassRoute;
+            }
         }
 
-
-        log.warn("모든 우회 실패 - 원본 경로 반환");
+        log.error("❌ 모든 우회 시도 실패 (3회) - 위험 경로 반환");
         return originalRoute;
+    }
+
+    // 경유지 포함 TMAP 경로 조회
+    private RouteResponse getRouteWithPassList(RouteRequest request, String passList) {
+        TmapApiRequest tmapRequest = TmapApiRequest.builder()
+                .startX(request.getStartLon())
+                .startY(request.getStartLat())
+                .endX(request.getEndLon())
+                .endY(request.getEndLat())
+                .passList(passList)
+                .startName("현재 위치")
+                .endName("대피소")
+                .reqCoordType("WGS84GEO")
+                .resCoordType("WGS84GEO")
+                .searchOption(0)
+                .build();
+
+        TmapApiResponse tmapResponse = callTmapApi(tmapRequest);
+        return parseRouteResponse(tmapResponse);
     }
 
     // TMAP API 실제 호출
