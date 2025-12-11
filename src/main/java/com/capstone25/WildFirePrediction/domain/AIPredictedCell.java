@@ -32,7 +32,7 @@ import org.locationtech.jts.geom.Point;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Builder(builderMethodName = "aiPredictedCell") // 명시적 빌더명
+@Builder
 public class AIPredictedCell extends BaseEntity {
 
     @Id
