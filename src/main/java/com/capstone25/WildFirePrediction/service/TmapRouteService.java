@@ -106,7 +106,7 @@ public class TmapRouteService {
         // 위험 셀들의 중심점 계산
         double centerLat = (request.getStartLat() + request.getEndLat()) / 2;
         double centerLon = (request.getStartLon() + request.getEndLon()) / 2;
-        double delta = 0.0045; // 500m
+        double delta = 0.009; // 1km
 
         // 4방향 완전 우회
         String[] bypassStrategies = {
