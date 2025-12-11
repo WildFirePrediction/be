@@ -105,6 +105,11 @@ public class GeoUtils {
         // 경로상 시작 인덱스 (첫 번째 점의 경로상 위치)
         int startIndex = findPathIndex(points.get(0), path);
 
+        // 못 찾은 경우 보정: 경로의 중간 정도로 넣어 우선순위 왜곡 최소화
+        if (startIndex == -1 && !path.isEmpty()) {
+            startIndex = path.size() / 2;
+        }
+
         // 그룹 길이 계산 (첫점~막점 직선거리)
         double groupLength = points.size() > 1 ?
                 haversine(points.get(0).getLatitude(), points.get(0).getLongitude(),
@@ -122,7 +127,7 @@ public class GeoUtils {
                 return i;
             }
         }
-        return 0;  // 정확히 일치하지 않으면 0
+        return -1;  // 못 찾음
     }
 
     // 충돌 그룹들로부터 tmap passList 문자열 생성 (최대 5개 경유지)
