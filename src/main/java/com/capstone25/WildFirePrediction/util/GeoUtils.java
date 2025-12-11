@@ -9,7 +9,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class GeoUtils {
 
@@ -142,13 +144,23 @@ public class GeoUtils {
     ) {
         if (groups.isEmpty()) return null;
 
+        log.info("generatePassList 호출 - 그룹 수: {}", groups.size());
+
         // 출발지에서 가까운 순으로 정렬 (경로상 인덱스 기준)
         List<CollisionGroup> sortedGroups = groups.stream()
                 .sorted(Comparator.comparingInt(CollisionGroup::getStartPathIndex))
                 .limit(TMAP_MAX_WAYPOINTS)  // TMAP 최대 5개 제한
                 .collect(Collectors.toList());
 
+        sortedGroups.forEach(g -> {
+            CollisionPoint rep = g.getRepresentativePoint();
+            log.info("우회 대상 그룹 - startIndex: {}, rep(lon,lat): {},{}",
+                    g.getStartPathIndex(), rep.getLongitude(), rep.getLatitude());
+        });
+
         List<String> waypoints = new ArrayList<>();
+        Double lastLon = null;
+        Double lastLat = null;
 
         for (CollisionGroup group : sortedGroups) {
             CollisionPoint repPoint = group.getRepresentativePoint();
@@ -165,9 +177,26 @@ public class GeoUtils {
                     dangerCells       // 주변 모든 위험 셀 리스트
             );
 
+            double lon = bypassPoint[0];
+            double lat = bypassPoint[1];
+
+            log.info("우회 후보 - cell(lon,lat): {},{} -> bypass(lon,lat): {},{}",
+                    cell.getLongitude(), cell.getLatitude(), lon, lat);
+
+            // 직전 경유지와 거의 같은 좌표면 스킵 (0.0001도 ≒ 10m)
+            if (lastLon != null && Math.abs(lastLon - lon) < COORDINATE_EQUALITY_TOLERANCE && Math.abs(lastLat - lat) < COORDINATE_EQUALITY_TOLERANCE) {
+                log.info("직전 경유지와 거의 동일하여 스킵: {},{}", lon, lat);
+                continue;
+            }
+
             waypoints.add(String.format("%.6f,%.6f", bypassPoint[0], bypassPoint[1]));
+            lastLon = lon;
+            lastLat = lat;
+
+            if (waypoints.size() >= 5) break; // 안전장치
         }
 
+        log.info("최종 passList waypoints {}개: {}", waypoints.size(), waypoints);
         return String.join("_", waypoints);
     }
 
@@ -214,6 +243,12 @@ public class GeoUtils {
         // 각 후보에 대해 가장 가까운 위험 셀까지 거리 계산
         double leftMinDistKm = minDistanceToCells(leftPoint[1], leftPoint[0], dangerCells);   // lat, lon 순
         double rightMinDistKm = minDistanceToCells(rightPoint[1], rightPoint[0], dangerCells);
+
+        log.info("좌/우 우회 후보 비교 - cell: {},{}  left: {},{} (minDistKm={}), right: {},{} (minDistKm={})",
+                cellLon, cellLat,
+                leftPoint[0], leftPoint[1], leftMinDistKm,
+                rightPoint[0], rightPoint[1], rightMinDistKm
+        );
 
         // 더 멀리 떨어진 쪽(위험 셀에서 더 먼 쪽)을 선택
         if (leftMinDistKm >= rightMinDistKm) {

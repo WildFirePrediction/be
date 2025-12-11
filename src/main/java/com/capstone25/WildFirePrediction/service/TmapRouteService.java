@@ -116,6 +116,12 @@ public class TmapRouteService {
         List<CollisionPoint> collisions = GeoUtils.findCollisionPoints(
                 originalRoute.getPath(), dangerCells);
 
+        log.info("충돌 포인트 개수: {}", collisions.size());
+        collisions.stream().limit(5).forEach(cp ->
+                log.info("충돌 포인트 샘플 - lon: {}, lat: {}, 셀거리(km): {}",
+                        cp.getLongitude(), cp.getLatitude(), cp.getDistanceToCell())
+        );
+
         if (collisions.isEmpty()) {
             log.info("✅ 충돌 없음, 원본 경로 안전");
             return originalRoute;
@@ -124,6 +130,12 @@ public class TmapRouteService {
         // 2. 충돌 그룹화
         List<CollisionGroup> groups = GeoUtils.groupCollisions(collisions, originalRoute.getPath());
         log.info("충돌 그룹 {}개 생성", groups.size());
+        groups.forEach(g -> {
+            CollisionPoint rep = g.getRepresentativePoint();
+            log.info("그룹 - startIndex: {}, length(m): {}, rep(lon,lat): {},{}",
+                    g.getStartPathIndex(), g.getGroupLength(),
+                    rep.getLongitude(), rep.getLatitude());
+        });
 
         // 3. 반복 우회 시도 (최대 3회)
         for (int iteration = 1; iteration <= MAX_BYPASS_ATTEMPTS; iteration++) {
