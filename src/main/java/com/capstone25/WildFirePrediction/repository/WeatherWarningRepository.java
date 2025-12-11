@@ -22,6 +22,11 @@ public interface WeatherWarningRepository extends JpaRepository<WeatherWarning, 
             Long presentationSerial
     );
 
+    // 발표시각 + 일련번호 키 리스트로 존재하는 키 조회 (배치 중복 체크용)
+    @Query("SELECT CONCAT(w.presentationTime, '_', w.presentationSerial) " +
+            "FROM WeatherWarning w WHERE CONCAT(w.presentationTime, '_', w.presentationSerial) IN :keys")
+    List<String> findExistingKeys(@Param("keys") List<String> keys);
+
     // 최근 N개 조회 (발표시각 내림차순, 페이지네이션)
     @Query(value = """
         SELECT * FROM weather_warning

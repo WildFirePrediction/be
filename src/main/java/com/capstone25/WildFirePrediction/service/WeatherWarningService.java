@@ -8,9 +8,11 @@ import com.capstone25.WildFirePrediction.repository.WeatherWarningRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class WeatherWarningService {
 
     private final WeatherWarningApiService weatherWarningApiService;
@@ -119,26 +120,39 @@ public class WeatherWarningService {
             return 0;
         }
 
+        // 1. DB 기존 키들 조회 (1번 쿼리)
+        List<String> keysToCheck = apiResponse.getBody().stream()
+                .map(data -> data.getPresentationTimeStr() + "_" + data.getPresentationSerial())
+                .toList();
+
+        Set<String> existingKeys = new HashSet<>(
+                weatherWarningRepository.findExistingKeys(keysToCheck)
+        );
+
         int savedCount = 0;
         for (WeatherWarningApiResponse.WeatherWarningData data : apiResponse.getBody()) {
+            String key = data.getPresentationTimeStr() + "_" + data.getPresentationSerial();
+            if (existingKeys.contains(key)) {
+                continue;
+            }
+
             try {
                 WeatherWarning warning = convertToEntity(data);
                 weatherWarningRepository.save(warning);
                 savedCount++;
-            } catch (DataIntegrityViolationException e) {
-                // unique 제약 위반 → 이미 저장된 데이터이므로 정상적인 중복 상황
-                log.trace("[기상특보] 중복 데이터 건너뜀: {}", data.getTitle());
             } catch (Exception e) {
                 log.error("[기상특보] 저장 실패: {}", data.getTitle(), e);
             }
         }
-        log.info("[기상특보] {}건 저장 완료", savedCount);
+
+        if (savedCount > 0) {
+            log.info("[기상특보] {}건 저장 완료", savedCount);
+        }
         return savedCount;
     }
 
     // 10분마다 최신 통보문 조회
     @Scheduled(cron = "0 */10 * * * *")
-    @Transactional
     public void scheduledFetchWeatherWarnings() {
         log.info("[기상특보] 10분 주기 수집 시작");
         try {

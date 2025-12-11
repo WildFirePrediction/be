@@ -25,7 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class EmergencyMessageService {
     private final EmergencyMessageApiService emergencyMessageApiService;
     private final EmergencyMessageRepository emergencyMessageRepository;
@@ -67,6 +66,7 @@ public class EmergencyMessageService {
         loadEmergencyMessagesByDate(today);
     }
 
+    @Transactional
     public void loadEmergencyMessagesByDate(String dateStr) {
         try {
             // 1. 첫 페이지로 총 데이터 수 확인
