@@ -119,24 +119,26 @@ public class WeatherWarningService {
         }
 
         // 1. DB 기존 키들 조회 (1번 쿼리) (3중키)
-        List<String> keysToCheck = apiResponse.getBody().stream()
-                .map(data -> String.format("%s_%s_%s",
-                        data.getBranch(),
-                        data.getPresentationTimeStr(),
-                        data.getPresentationSerial()))
+        List<WeatherWarning.WeatherWarningId> idsToCheck = apiResponse.getBody().stream()
+                .map(data -> WeatherWarning.WeatherWarningId.builder()
+                        .branch(data.getBranch().toString())
+                        .presentationTime(data.getPresentationTimeStr())
+                        .presentationSerial(data.getPresentationSerial().toString())
+                        .build())
                 .toList();
 
-        Set<String> existingKeys = new HashSet<>(
-                weatherWarningRepository.findExistingKeys(keysToCheck)
-        );
+        List<WeatherWarning.WeatherWarningId> existingIds = weatherWarningRepository.findExistingIds(idsToCheck);
+        Set<WeatherWarning.WeatherWarningId> existingIdSet = new HashSet<>(existingIds);
 
         int savedCount = 0;
         for (WeatherWarningApiResponse.WeatherWarningData data : apiResponse.getBody()) {
-            String key = String.format("%s_%s_%s",
-                    data.getBranch(),
-                    data.getPresentationTimeStr(),
-                    data.getPresentationSerial());
-            if (existingKeys.contains(key)) {
+            WeatherWarning.WeatherWarningId id = WeatherWarning.WeatherWarningId.builder()
+                    .branch(data.getBranch().toString())
+                    .presentationTime(data.getPresentationTimeStr())
+                    .presentationSerial(data.getPresentationSerial().toString())
+                    .build();
+
+            if (existingIdSet.contains(id)) {
                 continue;
             }
 

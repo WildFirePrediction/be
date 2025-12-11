@@ -9,10 +9,7 @@ import org.springframework.data.repository.query.Param;
 public interface WeatherWarningRepository extends JpaRepository<WeatherWarning, WeatherWarning.WeatherWarningId> {
 
     // 3중 복합키 중복 체크
-    @Query(value = """
-        SELECT CONCAT(w.brnch, '_', w.prsntn_tm, '_', w.prsntn_sn) 
-        FROM weather_warning w 
-        WHERE CONCAT(w.brnch, '_', w.prsntn_tm, '_', w.prsntn_sn) IN :keys
-        """, nativeQuery = true)
-    List<String> findExistingKeys(@Param("keys") List<String> keys);
+    @Query("SELECT w.id FROM WeatherWarning w WHERE w.id IN :ids")
+    List<WeatherWarning.WeatherWarningId> findExistingIds(
+            @Param("ids") List<WeatherWarning.WeatherWarningId> ids);
 }
