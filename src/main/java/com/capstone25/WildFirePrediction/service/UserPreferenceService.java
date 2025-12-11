@@ -36,6 +36,7 @@ public class UserPreferenceService {
 
         // 2. 기존 preferences 삭제
         preferenceRepository.deleteByUserDevice(userDevice);
+        preferenceRepository.flush();   // 즉시 반영
 
         // 3. 새로운 preferences 저장
         List<Region> regions = regionRepository.findAllById(regionIds);
