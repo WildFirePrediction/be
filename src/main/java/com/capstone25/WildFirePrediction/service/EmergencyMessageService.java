@@ -1,10 +1,13 @@
 package com.capstone25.WildFirePrediction.service;
 
 import com.capstone25.WildFirePrediction.domain.EmergencyMessage;
+import com.capstone25.WildFirePrediction.domain.Region;
 import com.capstone25.WildFirePrediction.dto.response.EmergencyMessageApiResponse;
 import com.capstone25.WildFirePrediction.global.code.status.ErrorStatus;
 import com.capstone25.WildFirePrediction.global.exception.handler.ExceptionHandler;
 import com.capstone25.WildFirePrediction.repository.EmergencyMessageRepository;
+import com.capstone25.WildFirePrediction.repository.RegionRepository;
+import com.capstone25.WildFirePrediction.util.EmergencyRegionParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import java.time.LocalDate;
@@ -28,6 +31,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class EmergencyMessageService {
     private final EmergencyMessageApiService emergencyMessageApiService;
     private final EmergencyMessageRepository emergencyMessageRepository;
+    private final EmergencyRegionParser emergencyRegionParser;
+    private final RegionRepository regionRepository;
 
     private static final DateTimeFormatter CRT_DT_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
     private static final DateTimeFormatter REG_YMD_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
@@ -69,6 +74,8 @@ public class EmergencyMessageService {
     @Transactional
     public void loadEmergencyMessagesByDate(String dateStr) {
         try {
+            LocalDate targetDate = LocalDate.parse(dateStr, DateTimeFormatter.ofPattern("yyyyMMdd"));
+
             // 1. 첫 페이지로 총 데이터 수 확인
             EmergencyMessageApiResponse firstPage = emergencyMessageApiService.fetchEmergencyMessagePage(1, dateStr, null);
             int totalCount = firstPage.getTotalCount();
@@ -110,10 +117,46 @@ public class EmergencyMessageService {
             }
 
             log.info("재난문자 동기화 완료 - crtDt={}, 신규: {}건, 중복: {}건", dateStr, savedCount, skippedCount);
+
+            // 저장 완료 후 매핑
+            if (savedCount > 0) {
+                mapMessagesToRegionsForDate(targetDate);
+            }
         } catch (Exception e) {
             log.error("재난문자 동기화 실패", e);
             throw new ExceptionHandler(ErrorStatus.EMERGENCY_DATA_LOAD_FAILED);
         }
+    }
+
+    @Transactional
+    public void mapMessagesToRegionsForDate(LocalDate targetDate) {
+        // 1) 해당 날짜 재난문자 전부 조회
+        List<EmergencyMessage> messages = emergencyMessageRepository.findByRegDate(targetDate);
+
+        for (EmergencyMessage message : messages) {
+            // 2) region_name 파싱
+            List<String> regionStrings = emergencyRegionParser.splitRegionNames(message.getRegionName());
+
+            for (String regionString : regionStrings) {
+
+                // 2-1) "울산광역시 전체" 처리: 시 전체
+                if (regionString.endsWith("전체")) {
+                    String sido = regionString.replace("전체", "").trim();
+                    List<Region> regions = regionRepository.findBySido(sido);
+                    regions.forEach(region -> region.addEmergencyMessageId(message.getId()));
+                    continue;
+                }
+
+                // 2-2) 일반 케이스: "경기도 수원시 장안구"
+                EmergencyRegionParser.ParsedRegion parsed = emergencyRegionParser.parseOne(regionString);
+                if (parsed == null) continue;
+
+                List<Region> regions = regionRepository.findBySidoAndSigungu(parsed.sido(), parsed.sigungu());
+                regions.forEach(region -> region.addEmergencyMessageId(message.getId()));
+            }
+        }
+
+        log.info("Region 매핑 완료 - date={}, messages={}", targetDate, messages.size());
     }
 
     // 페이지별 처리 (메모리 Set으로 O(1) 비교)
@@ -194,6 +237,20 @@ public class EmergencyMessageService {
         } catch (Exception e) {
             log.error("[재난문자] 스케줄링 수집 중 예외 발생", e);
             // 다음 실행까지 계속 동작 보장
+        }
+    }
+
+    // 매일 아침 5시 55분 리셋
+    @Scheduled(cron = "0 55 5 * * *")
+    @Transactional
+    public void scheduledResetRegionMappings() {
+        log.info("[재난문자/기상특보] Region 매핑 초기화 시작 (새벽 5:55)");
+        try {
+            List<Region> regions = regionRepository.findAll();
+            regions.forEach(Region::resetDisasterIds);
+            log.info("[재난문자/기상특보] Region 매핑 초기화 완료 - 대상: {}개", regions.size());
+        } catch (Exception e) {
+            log.error("[재난문자/기상특보] Region 초기화 실패", e);
         }
     }
 }

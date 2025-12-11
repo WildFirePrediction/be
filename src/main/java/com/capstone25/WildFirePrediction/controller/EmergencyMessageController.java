@@ -3,6 +3,8 @@ package com.capstone25.WildFirePrediction.controller;
 import com.capstone25.WildFirePrediction.global.ApiResponse;
 import com.capstone25.WildFirePrediction.service.EmergencyMessageService;
 import io.swagger.v3.oas.annotations.Operation;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -43,5 +45,19 @@ public class EmergencyMessageController {
     public ApiResponse<String> loadRawMessages(@RequestParam String date) {
         String rawJson = emergencyMessageService.loadRawEmergencyMessages(date);
         return ApiResponse.onSuccess(rawJson);
+    }
+
+    @PostMapping("/mapping")
+    @Operation(
+            summary = "재난문자 → Region 수동 매핑 (서버용)",
+            description = "지정한 날짜(YYYYMMDD)의 재난문자들을 기준으로 Region.emergency_message_ids를 다시 채웁니다.<br>" +
+                    "테스트/운영에서 수동으로 매핑을 다시 만들 때 사용합니다."
+    )
+    public ApiResponse<String> remapForDate(
+            @RequestParam String date   // 예: 20251211
+    ) {
+        LocalDate target = LocalDate.parse(date, DateTimeFormatter.ofPattern("yyyyMMdd"));
+        emergencyMessageService.mapMessagesToRegionsForDate(target);
+        return ApiResponse.onSuccess("Remapped for date=" + date);
     }
 }

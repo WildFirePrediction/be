@@ -1,14 +1,16 @@
 package com.capstone25.WildFirePrediction.controller;
 
 import com.capstone25.WildFirePrediction.dto.response.RegionResponse;
+import com.capstone25.WildFirePrediction.dto.response.RegionResponse.RegionResponseDto;
 import com.capstone25.WildFirePrediction.global.ApiResponse;
 import com.capstone25.WildFirePrediction.repository.RegionRepository;
-import com.capstone25.WildFirePrediction.service.RegionCsvService;
+import com.capstone25.WildFirePrediction.service.RegionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -20,7 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/regions")
 public class RegionController {
 
-    private final RegionCsvService regionCsvService;
+    private final RegionService regionService;
     private final RegionRepository regionRepository;
 
     // CSV 업로드 -> DB 저장
@@ -35,7 +37,7 @@ public class RegionController {
             @Parameter(description = "지역 정보가 담긴 CSV 파일", required = true)
             MultipartFile file)
         throws Exception {
-        int count = regionCsvService.importRegionsFromCsv(file);
+        int count = regionService.importRegionsFromCsv(file);
         return ApiResponse.onSuccess("Successfully imported " + count + " regions.");
     }
 
@@ -56,7 +58,7 @@ public class RegionController {
                     "예) keyword=동작 → 동작구 포함 행 모두<br>" +
                     "예) keyword=흑석 → 흑석동 포함 행 모두"
     )
-    public ApiResponse<List<RegionResponse>> searchRegions(
+    public ApiResponse<List<RegionResponseDto>> searchRegions(
             @RequestParam String keyword
     ) {
         // 빈값이 들어올 경우 전체 조회 방지
@@ -70,7 +72,7 @@ public class RegionController {
                 );
 
         var result = regions.stream()
-                .map(r -> new RegionResponse(
+                .map(r -> new RegionResponseDto(
                         r.getId(),
                         r.getSido(),
                         r.getSigungu(),
@@ -104,5 +106,17 @@ public class RegionController {
         return ApiResponse.onSuccess(
                 regionRepository.findBySidoAndSigungu(sido, sigungu)
         );
+    }
+
+    @GetMapping("/{regionId}/disasters")
+    @Operation(
+            summary = "지역별 당일 재난문자 조회",
+            description = "해당 지역(읍/면/동 ID)에 매핑된 당일 재난문자 목록을 최신순으로 반환합니다."
+    )
+    public ApiResponse<RegionResponse.RegionDisasterDto> getDisastersByRegionId(
+            @PathVariable Long regionId
+    ) {
+        RegionResponse.RegionDisasterDto response = regionService.getDisastersByRegionId(regionId);
+        return ApiResponse.onSuccess(response);
     }
 }

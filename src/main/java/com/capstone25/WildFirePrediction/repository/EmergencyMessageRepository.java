@@ -1,6 +1,7 @@
 package com.capstone25.WildFirePrediction.repository;
 
 import com.capstone25.WildFirePrediction.domain.EmergencyMessage;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -48,4 +49,7 @@ public interface EmergencyMessageRepository extends JpaRepository<EmergencyMessa
     WHERE serial_number IN :serialNumbers
     """, nativeQuery = true)
     List<String> findExistingSerialNumbers(@Param("serialNumbers") List<String> serialNumbers);
+
+    List<EmergencyMessage> findByRegDate(LocalDate regDate);
+
 }

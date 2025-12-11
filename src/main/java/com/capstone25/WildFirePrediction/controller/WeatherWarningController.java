@@ -39,4 +39,17 @@ public class WeatherWarningController {
             return ApiResponse.onSuccess(date.trim() + " 기준 기상특보 동기화를 수행했습니다.");
         }
     }
+
+    @PostMapping("/mapping")
+    @Operation(
+            summary = "기상특보 → Region 수동 매핑 (서버용)",
+            description = "지정한 날짜(YYYYMMDD)의 기상특보들을 기준으로 Region.weather_warning_ids를 다시 채웁니다.<br>" +
+                    "테스트/운영에서 수동으로 매핑을 다시 만들 때 사용합니다."
+    )
+    public ApiResponse<String> remapWarningsForDate(
+            @RequestParam String date   // 예: 20251211
+    ) {
+        weatherWarningService.mapWarningsToRegionsForDate(date.trim());
+        return ApiResponse.onSuccess("Weather warnings remapped for date=" + date.trim());
+    }
 }
