@@ -81,8 +81,7 @@ public class Region {
                 emergencyMessageIdsJson = objectMapper.writeValueAsString(ids);
             }
         } catch (Exception e) {
-            // 실패 시 빈 배열로 초기화
-            emergencyMessageIdsJson = "[]";
+            throw new RuntimeException("Failed to serialize emergency message IDs", e);
         }
     }
 
@@ -107,7 +106,7 @@ public class Region {
                 weatherWarningIdsJson = objectMapper.writeValueAsString(ids);
             }
         } catch (Exception e) {
-            weatherWarningIdsJson = "[]";
+            throw new RuntimeException("Failed to serialize weather warning IDs", e);
         }
     }
 
