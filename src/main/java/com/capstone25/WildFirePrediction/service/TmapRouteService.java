@@ -44,10 +44,12 @@ public class TmapRouteService {
     private final AIPredictedCellRepository aiPredictedCellRepository;
 
     private static final double MAX_DETOUR_KM = 3.0;
+    private static final double DETOUR_START_KM = 0.4;
     private static final double DETOUR_STEP_KM = 0.2;
+    private static final int MAX_BYPASS_ATTEMPTS = 15;
 
     private double getDetourDistanceKm(int iteration) {
-        double d = 0.4 + (iteration - 1) * DETOUR_STEP_KM;
+        double d = DETOUR_START_KM + (iteration - 1) * DETOUR_STEP_KM;
         return Math.min(d, MAX_DETOUR_KM);
     }
 
@@ -143,8 +145,11 @@ public class TmapRouteService {
                     rep.getLongitude(), rep.getLatitude());
         });
 
+        RouteResponse bestRoute = null;
+        int bestCollisionCount = Integer.MAX_VALUE;
+
         // 3. 반복 우회 시도
-        for (int iteration = 1; ; iteration++) {
+        for (int iteration = 1; iteration <= MAX_BYPASS_ATTEMPTS; iteration++) {
             double distanceKm = getDetourDistanceKm(iteration);
             log.info("=== 우회 반복 {} (detour={}km) ===", iteration, distanceKm);
 
@@ -164,34 +169,52 @@ public class TmapRouteService {
 
             log.info("생성된 passList: {}", passList);
             if (passList == null || passList.isEmpty()) {
-                log.warn("passList 생성 실패");
-                break;
+                log.warn("passList 생성 실패, 다음 시도.");
+                continue;
             }
 
             // 5. 경유지 포함 TMAP API 호출
-            RouteResponse bypassRoute = getRouteWithPassList(request, passList);
+            RouteResponse bypassRoute;
+            try {
+                bypassRoute = getRouteWithPassList(request, passList);
+            } catch (Exception e) {
+                log.warn("우회 TMAP 호출 실패, 다음 시도. err={}", e.getMessage());
+                continue;
+            }
 
-            // 6. 안전 검증
-            if (GeoUtils.isRouteSafe(bypassRoute.getPath(), dangerCells)) {
-                log.info("✅ 우회 성공! 반복 {}회, 경유지 {}, 거리: {}m",
-                        iteration, groups.size(), bypassRoute.getTotalDistance());
+            int collisionCount = GeoUtils.countCollisions(bypassRoute.getPath(), dangerCells);
+            log.info("반복 {}회 경로 충돌 개수: {}", iteration, collisionCount);
+
+            // 완전 안전이면 즉시 반환
+            if (collisionCount == 0) {
+                log.info("✅ 우회 성공! 반복 {}회, 거리: {}m", iteration, bypassRoute.getTotalDistance());
                 return bypassRoute;
             }
 
-            log.warn("반복 {}회 실패 - 재충돌 탐지", iteration);
+            // 지금까지 중 가장 안전한 후보 갱신
+            if (collisionCount < bestCollisionCount) {
+                bestCollisionCount = collisionCount;
+                bestRoute = bypassRoute;
+            }
 
             // 7. 다음 반복을 위해 충돌 정보 업데이트
             collisions = GeoUtils.findCollisionPoints(bypassRoute.getPath(), dangerCells);
             groups = GeoUtils.groupCollisions(collisions, bypassRoute.getPath());
 
-            // 그룹이 없어졌으면 성공 (드문 경우)
             if (groups.isEmpty()) {
-                log.info("✅ 우회 후 충돌 완전 제거!");
+                // 이론상 collisionCount==0이었어야 하지만, 방어적으로 처리
+                log.info("✅ 우회 후 그룹이 사라져 최종 경로 채택");
                 return bypassRoute;
             }
         }
 
-        log.error("❌ 모든 우회 시도 실패 ({}회) - 위험 경로 반환", MAX_DETOUR_KM / DETOUR_STEP_KM);
+        if (bestRoute != null) {
+            log.warn("⚠️ 완전 안전 경로는 없음. 충돌 {}개로 최소인 우회 경로 반환", bestCollisionCount);
+            bestRoute.setMessage("주의: 예측 산불 영역 일부를 통과합니다. 가능한 우회 중 가장 위험도가 낮은 경로입니다.");
+            return bestRoute;
+        }
+
+        log.error("❌ 모든 우회 시도 실패 ({}회) - 위험 경로 반환", MAX_BYPASS_ATTEMPTS);
         return originalRoute;
     }
 

@@ -266,4 +266,9 @@ public class GeoUtils {
                 .min()
                 .orElse(Double.MAX_VALUE);
     }
+
+    public static int countCollisions(List<List<Double>> path, List<AIPredictedCell> cells) {
+        return findCollisionPoints(path, cells).size();
+    }
+
 }
