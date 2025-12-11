@@ -56,4 +56,23 @@ public class DisasterInfoController {
         String rawJson = disasterInfoService.loadRawEarthquakeMessages(pageNo);
         return ApiResponse.onSuccess(rawJson);
     }
+
+    @PostMapping("/earthquake/load-and-save-korea")
+    @Operation(
+            summary = "지진 데이터 수집 및 저장 (한국만, 최신 1~11페이지)",
+            description = "지진 공공 API를 pageNo=1~11까지 조회하고, " +
+                    "위도/경도가 한반도 주변(한국)인 데이터만 ERQK_NO 기준 중복 제외 후 DB에 저장합니다."
+    )
+    public ApiResponse<String> loadAndSaveEarthquakesKoreaOnly() {
+        String resultJson = disasterInfoService.loadAndSaveRecentEarthquakesKoreaOnly();
+        return ApiResponse.onSuccess(resultJson);
+    }
+
+    @GetMapping("/earthquake")
+    @Operation(summary = "저장된 지진 재난정보 조회",
+            description = "DB에 저장된 지진 재난정보를 전체 조회합니다.")
+    public ApiResponse<String> getAllEarthquakes() {
+        String resultJson = disasterInfoService.getAllEarthquakes();
+        return ApiResponse.onSuccess(resultJson);
+    }
 }
