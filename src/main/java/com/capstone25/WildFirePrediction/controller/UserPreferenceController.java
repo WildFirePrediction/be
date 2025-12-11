@@ -1,7 +1,7 @@
 package com.capstone25.WildFirePrediction.controller;
 
 import com.capstone25.WildFirePrediction.domain.UserRegionPreference;
-import com.capstone25.WildFirePrediction.dto.response.RegionResponse;
+import com.capstone25.WildFirePrediction.dto.response.RegionResponse.RegionResponseDto;
 import com.capstone25.WildFirePrediction.global.ApiResponse;
 import com.capstone25.WildFirePrediction.service.UserPreferenceService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,15 +41,15 @@ public class UserPreferenceController {
     @Operation(summary = "유저 선호지역 조회",
             description = "설정된 선호지역 리스트를 반환<br>"
                     + "UUID를 헤더로 전달")
-    public ApiResponse<List<RegionResponse>> getPreferences(
+    public ApiResponse<List<RegionResponseDto>> getPreferences(
             @RequestHeader("X-DEVICE-UUID")
             @Parameter(description = "기기 UUID", required = true)
             String deviceUuid
     ) {
         List<UserRegionPreference> preferences = userPreferenceService.getPreferences(deviceUuid);
 
-        List<RegionResponse> result = preferences.stream()
-                .map(pref -> new RegionResponse(
+        List<RegionResponseDto> result = preferences.stream()
+                .map(pref -> new RegionResponseDto(
                         pref.getRegion().getId(),
                         pref.getRegion().getSido(),
                         pref.getRegion().getSigungu(),

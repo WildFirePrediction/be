@@ -1,12 +1,16 @@
 package com.capstone25.WildFirePrediction.service;
 
+import com.capstone25.WildFirePrediction.domain.EmergencyMessage;
 import com.capstone25.WildFirePrediction.domain.Region;
+import com.capstone25.WildFirePrediction.dto.response.RegionResponse;
+import com.capstone25.WildFirePrediction.repository.EmergencyMessageRepository;
 import com.capstone25.WildFirePrediction.repository.RegionRepository;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVReaderBuilder;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,9 +19,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
-public class RegionCsvService {
+public class RegionService {
 
     private final RegionRepository regionRepository;
+    private final EmergencyMessageRepository emergencyMessageRepository;
 
     @Transactional
     public int importRegionsFromCsv(MultipartFile file) throws Exception {
@@ -64,5 +69,36 @@ public class RegionCsvService {
 
         regionRepository.saveAll(regions);
         return regions.size();
+    }
+
+    // 지역별 재난문자 조회
+    @Transactional(readOnly = true)
+    public RegionResponse.RegionDisasterDto getDisastersByRegionId(Long regionId) {
+        Region region = regionRepository.findById(regionId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 지역 ID: " + regionId));
+
+        // 당일 재난문자 ID들 가져오기
+        List<Long> emergencyIds = region.getEmergencyMessageIds();
+
+        // 해당 ID들의 재난문자 조회 (IN 절, N+1 방지)
+        List<EmergencyMessage> emergencies = emergencyMessageRepository.findAllById(emergencyIds);
+
+        // 최신순 정렬
+        emergencies.sort(Comparator.comparing(EmergencyMessage::getCreatedAt).reversed());
+
+        return RegionResponse.RegionDisasterDto.builder()
+                .region(toRegionDto(region))
+                .emergencyMessages(emergencies)
+                .build();
+    }
+
+    // Region 엔티티를 RegionResponseDto로 변환
+    private RegionResponse.RegionResponseDto toRegionDto(Region region) {
+        return new RegionResponse.RegionResponseDto(
+                region.getId(),
+                region.getSido(),
+                region.getSigungu(),
+                region.getEupmyeondong()
+        );
     }
 }
