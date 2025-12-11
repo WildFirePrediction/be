@@ -147,7 +147,7 @@ public class GeoUtils {
             // 셀 중심에서 좌/우측 500m 우회점 계산 (더 안전한 쪽 선택)
             double[] bypassPoint = calculateBypassPoint(
                     cell.getLongitude(), cell.getLatitude(),
-                    direction, 0.005  // 500m (0.005도)
+                    direction, 0.5  // 500m
             );
 
             waypoints.add(String.format("%.6f,%.6f", bypassPoint[0], bypassPoint[1]));
