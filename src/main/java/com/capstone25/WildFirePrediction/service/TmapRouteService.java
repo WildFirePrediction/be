@@ -130,7 +130,8 @@ public class TmapRouteService {
             String passList = GeoUtils.generatePassList(
                     groups,
                     request.getStartLon(), request.getStartLat(),
-                    request.getEndLon(), request.getEndLat()
+                    request.getEndLon(), request.getEndLat(),
+                    dangerCells
             );
 
             log.info("생성된 passList: {}", passList);

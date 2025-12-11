@@ -131,7 +131,12 @@ public class GeoUtils {
     }
 
     // 충돌 그룹들로부터 tmap passList 문자열 생성 (최대 5개 경유지)
-    public static String generatePassList(List<CollisionGroup> groups, double startLon, double startLat, double endLon, double endLat) {
+    public static String generatePassList(
+            List<CollisionGroup> groups,
+            double startLon, double startLat,
+            double endLon, double endLat,
+            List<AIPredictedCell> dangerCells
+    ) {
         if (groups.isEmpty()) return null;
 
         // 출발지에서 가까운 순으로 정렬 (경로상 인덱스 기준)
@@ -150,9 +155,11 @@ public class GeoUtils {
             double[] direction = calculateDirection(startLon, startLat, endLon, endLat);
 
             // 셀 중심에서 좌/우측 500m 우회점 계산 (더 안전한 쪽 선택)
-            double[] bypassPoint = calculateBypassPoint(
-                    cell.getLongitude(), cell.getLatitude(),
-                    direction, 0.5  // 500m
+            double[] bypassPoint = GeoUtils.calculateSafeBypassPoint(
+                    cell,
+                    direction,
+                    0.5,              // 500m
+                    dangerCells       // 주변 모든 위험 셀 리스트
             );
 
             waypoints.add(String.format("%.6f,%.6f", bypassPoint[0], bypassPoint[1]));
@@ -171,10 +178,10 @@ public class GeoUtils {
     }
 
     // 셀 중심에서 좌/우측으로 수직 우회점 계산
-    private static double[] calculateBypassPoint(double cellLon, double cellLat, double[] direction, double distanceKm) {
-        // 수직 벡터 계산: [-direction[1], direction[0]] (좌회전)
-        double perpLon = -direction[1];  // 위도 방향 반전
-        double perpLat =  direction[0];  // 경도 방향 유지
+    private static double[] calculateBypassPointOneSide(double cellLon, double cellLat, double[] direction, double distanceKm, int side) {
+        // side: +1 = 좌, -1 = 우
+        double perpLon = -direction[1] * side;
+        double perpLat =  direction[0] * side;
 
         // 거리 변환 (km → 도)
         double lonOffset = (distanceKm / 111.32) * Math.cos(Math.toRadians(cellLat));  // 경도 1도=111km
@@ -185,5 +192,39 @@ public class GeoUtils {
         double bypassLat = cellLat + perpLat * latOffset;
 
         return new double[]{bypassLon, bypassLat};
+    }
+
+    // 셀 중심에서 좌/우측으로 수직 우회점 계산 후 더 안전한 쪽 선택
+    public static double[] calculateSafeBypassPoint(
+            AIPredictedCell cell,
+            double[] direction,
+            double distanceKm,
+            List<AIPredictedCell> dangerCells
+    ) {
+        double cellLon = cell.getLongitude();
+        double cellLat = cell.getLatitude();
+
+        // 좌/우 후보 우회점 계산
+        double[] leftPoint  = calculateBypassPointOneSide(cellLon, cellLat, direction, distanceKm, +1);
+        double[] rightPoint = calculateBypassPointOneSide(cellLon, cellLat, direction, distanceKm, -1);
+
+        // 각 후보에 대해 가장 가까운 위험 셀까지 거리 계산
+        double leftMinDistKm = minDistanceToCells(leftPoint[1], leftPoint[0], dangerCells);   // lat, lon 순
+        double rightMinDistKm = minDistanceToCells(rightPoint[1], rightPoint[0], dangerCells);
+
+        // 더 멀리 떨어진 쪽(위험 셀에서 더 먼 쪽)을 선택
+        if (leftMinDistKm >= rightMinDistKm) {
+            return leftPoint;
+        } else {
+            return rightPoint;
+        }
+    }
+
+    // 특정 좌표에서 가장 가까운 위험 셀까지 거리(km)
+    private static double minDistanceToCells(double lat, double lon, List<AIPredictedCell> cells) {
+        return cells.stream()
+                .mapToDouble(cell -> haversine(lat, lon, cell.getLatitude(), cell.getLongitude()))
+                .min()
+                .orElse(Double.MAX_VALUE);
     }
 }
