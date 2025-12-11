@@ -43,6 +43,22 @@ public enum ErrorStatus implements BaseErrorCode {
     WEATHER_WARNING_API_TIMEOUT(HttpStatus.REQUEST_TIMEOUT, "WEATHER408", "기상특보 API 호출이 타임아웃 되었습니다."),
     WEATHER_WARNING_DATA_LOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WEATHER501", "기상특보 데이터 로드에 실패했습니다."),
 
+    // 산불 API 전용 에러
+    WILDFIRE_API_CONFIG_MISSING(HttpStatus.INTERNAL_SERVER_ERROR, "WILDFIRE500", "산불 API 설정을 찾을 수 없습니다."),
+    WILDFIRE_API_SERVICE_KEY_INVALID(HttpStatus.UNAUTHORIZED, "WILDFIRE401", "산불 API 서비스키가 유효하지 않습니다."),
+    WILDFIRE_API_RESPONSE_INVALID(HttpStatus.BAD_REQUEST, "WILDFIRE400", "산불 API 응답 형식이 잘못되었습니다."),
+    WILDFIRE_API_CALL_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "WILDFIRE503", "산불 API 호출에 실패했습니다."),
+    WILDFIRE_API_TIMEOUT(HttpStatus.REQUEST_TIMEOUT, "WILDFIRE408", "산불 API 호출이 타임아웃 되었습니다."),
+    WILDFIRE_DATA_LOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WILDFIRE501", "산불 데이터 로드에 실패했습니다."),
+
+    // 지진 API 전용 에러
+    EARTHQUAKE_API_CONFIG_MISSING(HttpStatus.INTERNAL_SERVER_ERROR, "EARTHQUAKE500", "지진 API 설정을 찾을 수 없습니다."),
+    EARTHQUAKE_API_SERVICE_KEY_INVALID(HttpStatus.UNAUTHORIZED, "EARTHQUAKE401", "지진 API 서비스키가 유효하지 않습니다."),
+    EARTHQUAKE_API_RESPONSE_INVALID(HttpStatus.BAD_REQUEST, "EARTHQUAKE400", "지진 API 응답 형식이 잘못되었습니다."),
+    EARTHQUAKE_API_CALL_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "EARTHQUAKE503", "지진 API 호출에 실패했습니다."),
+    EARTHQUAKE_API_TIMEOUT(HttpStatus.REQUEST_TIMEOUT, "EARTHQUAKE408", "지진 API 호출이 타임아웃 되었습니다."),
+    EARTHQUAKE_DATA_LOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "EARTHQUAKE501", "지진 데이터 로드에 실패했습니다."),
+
     // 유저 선호지역 관련 에러
     PREFERENCE_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "PREFERENCE400", "선호지역은 최대 3개까지 설정할 수 있습니다.");
 
