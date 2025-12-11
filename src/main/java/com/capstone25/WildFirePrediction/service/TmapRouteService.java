@@ -43,6 +43,9 @@ public class TmapRouteService {
     private final RestTemplate restTemplate;
     private final AIPredictedCellRepository aiPredictedCellRepository;
 
+    private static final int MAX_BYPASS_ATTEMPTS = 3;
+
+
     // 안전 경로 조회
     public RouteResponse getSafeRoute(RouteRequest request) {
         log.info("안전 경로 조회 요청: ({}, {}) → ({}, {})",
@@ -123,7 +126,7 @@ public class TmapRouteService {
         log.info("충돌 그룹 {}개 생성", groups.size());
 
         // 3. 반복 우회 시도 (최대 3회)
-        for (int iteration = 1; iteration <= 3; iteration++) {
+        for (int iteration = 1; iteration <= MAX_BYPASS_ATTEMPTS; iteration++) {
             log.info("=== 우회 반복 {}/3 ===", iteration);
 
             // 4. passList 생성 (최대 5개 경유지)

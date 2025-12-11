@@ -14,8 +14,11 @@ import lombok.NoArgsConstructor;
 public class GeoUtils {
 
     private static final double EARTH_RADIUS_KM = 6371.0;
-    private static final double SAFE_DISTANCE_KM = 0.75;  // 안전 범위 - 750m 보수적
     private static final double COLLISION_DISTANCE_KM = 0.265;  // 375m 셀 대각선/2 ≈ 265m
+    private static final double GROUPING_DISTANCE_KM = 0.05;  // 50m 이내 연속 충돌은 같은 그룹
+    private static final double COORDINATE_EQUALITY_TOLERANCE = 0.0001; // 위도/경도 비교 허용 오차
+    private static final int TMAP_MAX_WAYPOINTS = 5;    // TMAP 최대 경유지 수
+    private static final double KM_PER_DEGREE_APPROX = 111.32;  // 위도 1도당 약 111.32km
 
     // Haversine 거리 계산 (km)
     public static double haversine(double lat1, double lon1, double lat2, double lon2) {
@@ -78,7 +81,7 @@ public class GeoUtils {
             double distance = haversine(prev.getLatitude(), prev.getLongitude(),
                     curr.getLatitude(), curr.getLongitude());
 
-            if (distance <= 0.05) {  // 50m 이내
+            if (distance <= GROUPING_DISTANCE_KM) {  // 50m 이내
                 currentGroup.add(curr);
             } else {
                 // 새 그룹 시작
@@ -122,8 +125,8 @@ public class GeoUtils {
     private static int findPathIndex(CollisionPoint point, List<List<Double>> path) {
         for (int i = 0; i < path.size(); i++) {
             List<Double> pathPoint = path.get(i);
-            if (Math.abs(pathPoint.get(0) - point.getLongitude()) < 0.0001 &&
-                    Math.abs(pathPoint.get(1) - point.getLatitude()) < 0.0001) {
+            if (Math.abs(pathPoint.get(0) - point.getLongitude()) < COORDINATE_EQUALITY_TOLERANCE &&
+                    Math.abs(pathPoint.get(1) - point.getLatitude()) < COORDINATE_EQUALITY_TOLERANCE) {
                 return i;
             }
         }
@@ -142,7 +145,7 @@ public class GeoUtils {
         // 출발지에서 가까운 순으로 정렬 (경로상 인덱스 기준)
         List<CollisionGroup> sortedGroups = groups.stream()
                 .sorted(Comparator.comparingInt(CollisionGroup::getStartPathIndex))
-                .limit(5)  // TMAP 최대 5개 제한
+                .limit(TMAP_MAX_WAYPOINTS)  // TMAP 최대 5개 제한
                 .collect(Collectors.toList());
 
         List<String> waypoints = new ArrayList<>();
@@ -184,8 +187,8 @@ public class GeoUtils {
         double perpLat =  direction[0] * side;
 
         // 거리 변환 (km → 도)
-        double lonOffset = (distanceKm / 111.32) * Math.cos(Math.toRadians(cellLat));  // 경도 1도=111km
-        double latOffset = distanceKm / 111.32;  // 위도 1도=111km
+        double lonOffset = (distanceKm / KM_PER_DEGREE_APPROX) * Math.cos(Math.toRadians(cellLat));  // 경도 1도=111km
+        double latOffset = distanceKm / KM_PER_DEGREE_APPROX;  // 위도 1도=111km
 
         // 좌측 우회점 계산
         double bypassLon = cellLon + perpLon * lonOffset;
