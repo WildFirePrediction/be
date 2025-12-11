@@ -30,8 +30,10 @@ public class DisasterInfoController {
     @PostMapping("/earthquake/load-raw")
     @Operation(summary = "원시 지진 재난정보 조회 (테스트용)",
             description = "공공 API를 호출하여 응답 JSON을 그대로 String으로 반환합니다. DB 저장하지 않습니다.")
-    public ApiResponse<String> loadRawEarthquakeMessages() {
-        String rawJson = disasterInfoService.loadRawEarthquakeMessages();
+    public ApiResponse<String> loadRawEarthquakeMessages(
+            @RequestParam(defaultValue = "1") int pageNo
+    ) {
+        String rawJson = disasterInfoService.loadRawEarthquakeMessages(pageNo);
         return ApiResponse.onSuccess(rawJson);
     }
 }

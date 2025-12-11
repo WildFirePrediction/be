@@ -41,11 +41,11 @@ public class DisasterInfoService {
     }
 
     // 원시 지진 재난정보 조회 (테스트용)
-    public String loadRawEarthquakeMessages() {
+    public String loadRawEarthquakeMessages(int pageNo) {
         log.info("원시 지진 재난정보 조회 시작");
 
         try {
-            EarthquakeApiResponse response = disasterInfoApiService.fetchEarthquakePage(1);
+            EarthquakeApiResponse response = disasterInfoApiService.fetchEarthquakePage(pageNo);
 
             int totalCount = response.getTotalCount();
             int pageSize = response.getNumOfRows();
