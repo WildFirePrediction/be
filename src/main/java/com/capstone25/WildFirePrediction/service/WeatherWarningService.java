@@ -6,7 +6,6 @@ import com.capstone25.WildFirePrediction.global.code.status.ErrorStatus;
 import com.capstone25.WildFirePrediction.global.exception.handler.ExceptionHandler;
 import com.capstone25.WildFirePrediction.repository.WeatherWarningRepository;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.List;
@@ -91,13 +90,12 @@ public class WeatherWarningService {
     }
 
     private WeatherWarning convertToEntity(WeatherWarningApiResponse.WeatherWarningData data) {
-        LocalDateTime presentationTime = LocalDateTime.parse(
-                data.getPresentationTimeStr(), PRSNTN_TM_FORMATTER);
-
         return WeatherWarning.builder()
-                .branch(data.getBranch())
-                .presentationTime(presentationTime)
-                .presentationSerial(data.getPresentationSerial())
+                .id(WeatherWarning.WeatherWarningId.builder()
+                        .branch(data.getBranch().toString())           // Integer → String
+                        .presentationTime(data.getPresentationTimeStr()) // String 그대로
+                        .presentationSerial(data.getPresentationSerial().toString()) // Long → String
+                        .build())
                 .forecasterName(data.getForecasterName())
                 .warningPresentationCode(data.getWarningPresentationCode())
                 .title(data.getTitle())
@@ -120,9 +118,12 @@ public class WeatherWarningService {
             return 0;
         }
 
-        // 1. DB 기존 키들 조회 (1번 쿼리)
+        // 1. DB 기존 키들 조회 (1번 쿼리) (3중키)
         List<String> keysToCheck = apiResponse.getBody().stream()
-                .map(data -> data.getPresentationTimeStr() + "_" + data.getPresentationSerial())
+                .map(data -> String.format("%s_%s_%s",
+                        data.getBranch(),
+                        data.getPresentationTimeStr(),
+                        data.getPresentationSerial()))
                 .toList();
 
         Set<String> existingKeys = new HashSet<>(
@@ -131,7 +132,10 @@ public class WeatherWarningService {
 
         int savedCount = 0;
         for (WeatherWarningApiResponse.WeatherWarningData data : apiResponse.getBody()) {
-            String key = data.getPresentationTimeStr() + "_" + data.getPresentationSerial();
+            String key = String.format("%s_%s_%s",
+                    data.getBranch(),
+                    data.getPresentationTimeStr(),
+                    data.getPresentationSerial());
             if (existingKeys.contains(key)) {
                 continue;
             }
