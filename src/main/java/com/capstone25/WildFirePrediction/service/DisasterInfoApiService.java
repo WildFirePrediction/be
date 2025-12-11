@@ -21,7 +21,7 @@ public class DisasterInfoApiService {
 
     // 산불 api - 한 페이지 조회
     public WildFireApiResponse fetchWildFirePage(int pageNo, String startDate) {
-        SafetyDataProperties.ApiConfig config = safetyDataProperties.getApis().get("wildfire");
+        SafetyDataProperties.ApiConfig config = safetyDataProperties.getApis().get("wild-fire");
 
         if (config == null) {
             log.error("wildfire API 설정을 찾을 수 없습니다. application.yml을 확인하세요.");
