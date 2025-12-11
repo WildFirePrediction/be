@@ -103,28 +103,85 @@ public class TmapRouteService {
     // 우회 경로 계산
     private RouteResponse findBypassRoute(RouteRequest request, RouteResponse originalRoute,
                                           List<AIPredictedCell> dangerCells) {
-        // 위험 셀들의 중심점 계산
-        double centerLat = (request.getStartLat() + request.getEndLat()) / 2;
-        double centerLon = (request.getStartLon() + request.getEndLon()) / 2;
-        double delta = 0.09; // 10km 우회 거리
+        // 위험 셀 없으면 그냥 원본 반환
+        if (dangerCells == null || dangerCells.isEmpty()) {
+            log.info("위험 셀이 없어 우회 없이 원본 경로 반환");
+            return originalRoute;
+        }
 
-        // 4방향 완전 우회
-        String[] bypassStrategies = {
-                String.format("%.6f,%.6f", centerLon,     centerLat + delta), // 북
-                String.format("%.6f,%.6f", centerLon + delta, centerLat),     // 동
-                String.format("%.6f,%.6f", centerLon,     centerLat - delta), // 남
-                String.format("%.6f,%.6f", centerLon - delta, centerLat)      // 서
-        };
-        for (int i = 0; i < bypassStrategies.length; i++) {
-            String passList = bypassStrategies[i];
-            log.info("우회 방향 {} ({}): {}", i+1, getDirection(i), passList);
+        // 위험 박스 계산
+        double minLat =  90.0;
+        double maxLat = -90.0;
+        double minLon =  180.0;
+        double maxLon = -180.0;
+
+        for (AIPredictedCell cell : dangerCells) {
+            double lat = cell.getLatitude();
+            double lon = cell.getLongitude();
+            if (lat < minLat) minLat = lat;
+            if (lat > maxLat) maxLat = lat;
+            if (lon < minLon) minLon = lon;
+            if (lon > maxLon) maxLon = lon;
+        }
+
+        // 위험 박스에 약간 여유(200m 정도) 추가
+        double margin = 0.002; // ≒ 200m
+        minLat -= margin;
+        maxLat += margin;
+        minLon -= margin;
+        maxLon += margin;
+
+        double boxCenterLat = (minLat + maxLat) / 2.0;
+        double boxCenterLon = (minLon + maxLon) / 2.0;
+
+        // 박스 바깥 경유지 후보들 (약 2km 밖으로)
+        double d = 0.02; // 위도/경도 0.02도 ≒ 2km 근처 (서울 위도 기준 대략)
+
+        double[] north = { boxCenterLon, maxLat + d }; // 북쪽 바깥
+        double[] south = { boxCenterLon, minLat - d }; // 남쪽 바깥
+        double[] east  = { maxLon + d,   boxCenterLat }; // 동쪽 바깥
+        double[] west  = { minLon - d,   boxCenterLat }; // 서쪽 바깥
+
+        // 다중 경유지 패턴 정의 (최대 3개 경유지)
+        String passList1 = String.format(
+                "%.6f,%.6f_%.6f,%.6f_%.6f,%.6f",
+                south[0], south[1],
+                west[0],  west[1],
+                north[0], north[1]
+        ); // 남 → 서 → 북 (서남쪽으로 크게 돌아 위로)
+
+        String passList2 = String.format(
+                "%.6f,%.6f_%.6f,%.6f_%.6f,%.6f",
+                north[0], north[1],
+                east[0],  east[1],
+                south[0], south[1]
+        ); // 북 → 동 → 남
+
+        String passList3 = String.format(
+                "%.6f,%.6f_%.6f,%.6f",
+                west[0],  west[1],
+                south[0], south[1]
+        ); // 서 → 남 (2점만)
+
+        String passList4 = String.format(
+                "%.6f,%.6f_%.6f,%.6f",
+                east[0],  east[1],
+                north[0], north[1]
+        ); // 동 → 북 (2점만)
+
+        String[] passLists = { passList1, passList2, passList3, passList4 };
+
+        // 패턴별로 Tmap 우회 경로 시도
+        for (int i = 0; i < passLists.length; i++) {
+            String passList = passLists[i];
+            log.info("우회 패턴 {} 시도: passList={}", i + 1, passList);
 
             TmapApiRequest bypassRequest = TmapApiRequest.builder()
                     .startX(request.getStartLon())
                     .startY(request.getStartLat())
                     .endX(request.getEndLon())
                     .endY(request.getEndLat())
-                    .passList(passList)
+                    .passList(passList)   // 여러 경유지 사용
                     .startName("현재 위치")
                     .endName("대피소")
                     .reqCoordType("WGS84GEO")
@@ -132,28 +189,29 @@ public class TmapRouteService {
                     .searchOption(0)
                     .build();
 
-            RouteResponse bypassRoute = parseRouteResponse(callTmapApi(bypassRequest));
+            TmapApiResponse bypassResponse;
+            try {
+                bypassResponse = callTmapApi(bypassRequest);
+            } catch (Exception e) {
+                log.warn("우회 패턴 {} TMAP 호출 실패, 다음 패턴 시도: {}", i + 1, e.getMessage());
+                continue;
+            }
+
+            RouteResponse bypassRoute = parseRouteResponse(bypassResponse);
 
             // 우회 경로도 안전한지 검사
             if (GeoUtils.isRouteSafe(bypassRoute.getPath(), dangerCells)) {
-                log.info("우회 성공! 방향 {} ({}): {}", i+1, getDirection(i), passList);
+                log.info("✅ 우회 성공! 패턴 {} 사용, 총 거리: {}m, 시간: {}분",
+                        i + 1, bypassRoute.getTotalDistance(), bypassRoute.getTotalTime());
                 return bypassRoute;
             }
+
+            log.info("우회 패턴 {} 경로도 여전히 위험, 다음 패턴 시도", i + 1);
         }
+
 
         log.warn("모든 우회 실패 - 원본 경로 반환");
         return originalRoute;
-    }
-
-    // 방향 이름 매핑
-    private String getDirection(int index) {
-        return switch (index) {
-            case 0 -> "북";
-            case 1 -> "동";
-            case 2 -> "남";
-            case 3 -> "서";
-            default -> "알수없음";
-        };
     }
 
     // TMAP API 실제 호출
