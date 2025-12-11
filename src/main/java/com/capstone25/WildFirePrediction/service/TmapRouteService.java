@@ -43,7 +43,7 @@ public class TmapRouteService {
     private final RestTemplate restTemplate;
     private final AIPredictedCellRepository aiPredictedCellRepository;
 
-    private static final int MAX_BYPASS_ATTEMPTS = 3;
+    private static final int MAX_BYPASS_ATTEMPTS = 5;
 
 
     // 안전 경로 조회
@@ -70,9 +70,10 @@ public class TmapRouteService {
 
         // 4. 우회 경로 반환
         RouteResponse safeRoute = findBypassRoute(request, originalRoute, dangerCells);
+        boolean finalSafe = GeoUtils.isRouteSafe(safeRoute.getPath(), dangerCells);
         log.info("최종 경로 - 거리: {}m, 시간: {}분, 안전여부: {}",
                 safeRoute.getTotalDistance(), safeRoute.getTotalTime(),
-                safeRoute != originalRoute ? "✅" : "⚠️");
+                finalSafe ? "✅" : "⚠️");
         return safeRoute;
     }
 
@@ -137,16 +138,20 @@ public class TmapRouteService {
                     rep.getLongitude(), rep.getLatitude());
         });
 
-        // 3. 반복 우회 시도 (최대 3회)
+        // 3. 반복 우회 시도 (최대 3회, 우회거리 증가)
         for (int iteration = 1; iteration <= MAX_BYPASS_ATTEMPTS; iteration++) {
-            log.info("=== 우회 반복 {}/3 ===", iteration);
+            log.info("=== 우회 반복 {}/{} ===", iteration, MAX_BYPASS_ATTEMPTS);
+
+            // 반복 횟수에 따라 우회 거리(km) 점점 증가
+            double distanceKm = 0.5 * iteration;
 
             // 4. passList 생성 (최대 5개 경유지)
             String passList = GeoUtils.generatePassList(
                     groups,
                     request.getStartLon(), request.getStartLat(),
                     request.getEndLon(), request.getEndLat(),
-                    dangerCells
+                    dangerCells,
+                    distanceKm
             );
 
             log.info("생성된 passList: {}", passList);
@@ -179,7 +184,7 @@ public class TmapRouteService {
             }
         }
 
-        log.error("❌ 모든 우회 시도 실패 (3회) - 위험 경로 반환");
+        log.error("❌ 모든 우회 시도 실패 ({}회) - 위험 경로 반환", MAX_BYPASS_ATTEMPTS);
         return originalRoute;
     }
 

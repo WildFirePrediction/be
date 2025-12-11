@@ -140,7 +140,8 @@ public class GeoUtils {
             List<CollisionGroup> groups,
             double startLon, double startLat,
             double endLon, double endLat,
-            List<AIPredictedCell> dangerCells
+            List<AIPredictedCell> dangerCells,
+            double distanceKm
     ) {
         if (groups.isEmpty()) return null;
 
@@ -173,7 +174,7 @@ public class GeoUtils {
             double[] bypassPoint = GeoUtils.calculateSafeBypassPoint(
                     cell,
                     direction,
-                    0.5,              // 500m
+                    distanceKm,
                     dangerCells       // 주변 모든 위험 셀 리스트
             );
 
