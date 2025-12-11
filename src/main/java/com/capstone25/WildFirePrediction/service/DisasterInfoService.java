@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -32,15 +33,11 @@ public class DisasterInfoService {
 
     private final ObjectMapper objectMapper;
 
-    private static final DateTimeFormatter GNT_DT_FORMATTER = DateTimeFormatter.ofPattern(
-            "yyyy/MM/dd HH:mm:ss.SSSSSSSSS");
-    private static final DateTimeFormatter MAAS_DT_FORMATTER = DateTimeFormatter.ofPattern(
-            "yyyy/MM/dd HH:mm:ss.SSSSSSSSS");
+    private static final DateTimeFormatter GNT_DT_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss.SSSSSSSSS");
+    private static final DateTimeFormatter MAAS_DT_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss.SSSSSSSSS");
 
-    private static final DateTimeFormatter EQ_TIME_FORMATTER = DateTimeFormatter.ofPattern(
-            "yyyy/MM/dd HH:mm:ss.SSSSSSSSS");
-    private static final DateTimeFormatter MAAS_EQ_DT_FORMATTER = DateTimeFormatter.ofPattern(
-            "yyyy/MM/dd HH:mm:ss.SSSSSSSSS");
+    private static final DateTimeFormatter EQ_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
+    private static final DateTimeFormatter MAAS_EQ_DT_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
 
     // 원시 산불 재난정보 조회 (테스트용)
     public String loadRawWildfireMessages(String date) {
@@ -311,6 +308,7 @@ public class DisasterInfoService {
 
                 // 한국 영역만
                 if (!isKorea(lat, lon)) {
+                    log.info("[지진] 한국 범위 밖 → 스킵 (lat={}, lon={}, pstn={})", lat, lon, data.getPosition());
                     skippedCount++;
                     continue;
                 }
@@ -375,8 +373,13 @@ public class DisasterInfoService {
 
     private LocalDateTime parseEqTime(String str, DateTimeFormatter formatter) {
         if (str == null || str.isBlank()) return null;
-        String trimmed = str.trim();
-        return LocalDateTime.parse(trimmed, formatter);
+        try {
+            return LocalDateTime.parse(str.trim(), formatter);
+        } catch (DateTimeParseException e) {
+            log.warn("[지진] 날짜 파싱 실패 - value='{}', pattern='{}'",
+                    str, formatter);
+            return null;
+        }
     }
 
     private String buildEqResultJson(int totalCount, int saved, int skipped) throws Exception {
