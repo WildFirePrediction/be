@@ -69,7 +69,7 @@ public class TmapRouteService {
         RouteResponse safeRoute = findBypassRoute(request, originalRoute, dangerCells);
         log.info("최종 경로 - 거리: {}m, 시간: {}분, 안전여부: {}",
                 safeRoute.getTotalDistance(), safeRoute.getTotalTime(),
-                GeoUtils.isRouteSafe(safeRoute.getPath(), dangerCells) ? "✅" : "⚠️");
+                safeRoute != originalRoute ? "✅" : "⚠️");
         return safeRoute;
     }
 
