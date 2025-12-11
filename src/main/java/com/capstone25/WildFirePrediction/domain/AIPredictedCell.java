@@ -19,6 +19,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.Point;
 
 @Entity
 @Table(name = "ai_predicted_cell",
@@ -29,7 +32,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Builder
+@Builder(builderMethodName = "aiPredictedCell") // 명시적 빌더명
 public class AIPredictedCell extends BaseEntity {
 
     @Id
@@ -45,8 +48,8 @@ public class AIPredictedCell extends BaseEntity {
     private Double longitude;
 
     // 공간 컬럼 추가 (MySQL POINT 타입)
-    @Column(columnDefinition = "POINT NOT NULL", nullable = false)
-    private String geom;  // "POINT(long lat)" 형태로 저장
+    @Column(columnDefinition = "geometry NOT NULL", nullable = false)
+    private Point geom;  // JTS Point 타입 사용
 
     // 타임스텝 정보 (1~5)
     @Column(nullable = false)
@@ -69,9 +72,16 @@ public class AIPredictedCell extends BaseEntity {
     @PrePersist
     @PreUpdate
     public void generateGeom() {
-        if (latitude != null && longitude != null) {
-            this.geom = String.format("POINT(%f %f)", longitude, latitude);
+        if (latitude != null && longitude != null && geom == null) {
+            GeometryFactory geometryFactory = new GeometryFactory();
+            this.geom = geometryFactory.createPoint(new Coordinate(longitude, latitude));
+            this.geom.setSRID(4326);  // WGS84
         }
+    }
+
+    // Setter 추가 (Builder에서 사용)
+    public void setGeom(Point geom) {
+        this.geom = geom;
     }
 
 

@@ -68,7 +68,7 @@ public interface AIPredictedCellRepository extends JpaRepository<AIPredictedCell
         SELECT c.* FROM ai_predicted_cell c
         JOIN ai_prediction_fire f ON c.fire_id = f.id
         WHERE MBRContains(
-            ST_GeomFromText(:bboxPolygon, 0),
+            ST_GeomFromText(:bboxPolygon, 4326),  -- SRID 4326 추가
             c.geom
         ) 
         AND f.status = 'PROGRESS'
@@ -76,7 +76,7 @@ public interface AIPredictedCellRepository extends JpaRepository<AIPredictedCell
             BETWEEN CURRENT_TIMESTAMP 
             AND DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 1 HOUR)
         AND c.probability > :minProbability
-        ORDER BY ST_Distance_Sphere(c.geom, ST_GeomFromText(:centerPoint, 0))
+        ORDER BY ST_Distance_Sphere(c.geom, ST_GeomFromText(:centerPoint, 4326))  -- SRID 추가
         LIMIT 100
         """, nativeQuery = true)
     List<AIPredictedCell> findDangerCellsNearRoute(
