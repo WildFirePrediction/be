@@ -24,16 +24,7 @@ import lombok.NoArgsConstructor;
 @Table(
         name = "weather_warning",
         indexes = {
-        // PK 직접 인덱스 활용 + 최적화
-            @Index(name = "idx_branch_time", columnList = "brnch,prsntn_tm"),
-            @Index(name = "idx_title", columnList = "title")
-        },
-        // 복합키 고유제약 자동 생성 + 추가 제약
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uk_weather_pk",
-                        columnNames = {"brnch", "prsntn_tm", "prsntn_sn"}
-                )
+                @Index(name = "idx_title", columnList = "title")
         }
 )
 public class WeatherWarning {
