@@ -180,6 +180,29 @@ public class WeatherWarningService {
         }
     }
 
+    // 특정 일자 기준으로 기상특보 -> Region 매핑 재생성
+    @Transactional
+    public void mapWarningsToRegionsForDate(String yyyymmdd) {
+        // 1) 해당 날짜 전체 기상특보 조회
+        List<WeatherWarning> warnings = weatherWarningRepository.findByDate(yyyymmdd);
+
+        // 2) 각 특보마다 시/도 리스트를 파싱해서 Region에 ID 추가
+        for (WeatherWarning warning : warnings) {
+            List<String> sidoList = weatherRegionParser.extractSidoList(warning.getEffectiveStatusContent());
+            if (sidoList.isEmpty()) {
+                continue;
+            }
+
+            String warningKey = buildWarningKey(warning);
+            for (String sido : sidoList) {
+                List<Region> regions = regionRepository.findBySido(sido);
+                regions.forEach(region -> region.addWeatherWarningId(warningKey));
+            }
+        }
+
+        log.info("[기상특보] 매핑 재생성 완료 - date={}, warnings={}", yyyymmdd, warnings.size());
+    }
+
     // 특보 키 생성
     private String buildWarningKey(WeatherWarning warning) {
         WeatherWarning.WeatherWarningId id = warning.getId();
