@@ -43,8 +43,13 @@ public class TmapRouteService {
     private final RestTemplate restTemplate;
     private final AIPredictedCellRepository aiPredictedCellRepository;
 
-    private static final int MAX_BYPASS_ATTEMPTS = 5;
+    private static final double MAX_DETOUR_KM = 3.0;
+    private static final double DETOUR_STEP_KM = 0.2;
 
+    private double getDetourDistanceKm(int iteration) {
+        double d = 0.4 + (iteration - 1) * DETOUR_STEP_KM;
+        return Math.min(d, MAX_DETOUR_KM);
+    }
 
     // 안전 경로 조회
     public RouteResponse getSafeRoute(RouteRequest request) {
@@ -138,12 +143,15 @@ public class TmapRouteService {
                     rep.getLongitude(), rep.getLatitude());
         });
 
-        // 3. 반복 우회 시도 (최대 3회, 우회거리 증가)
-        for (int iteration = 1; iteration <= MAX_BYPASS_ATTEMPTS; iteration++) {
-            log.info("=== 우회 반복 {}/{} ===", iteration, MAX_BYPASS_ATTEMPTS);
+        // 3. 반복 우회 시도
+        for (int iteration = 1; ; iteration++) {
+            double distanceKm = getDetourDistanceKm(iteration);
+            log.info("=== 우회 반복 {} (detour={}km) ===", iteration, distanceKm);
 
-            // 반복 횟수에 따라 우회 거리(km) 점점 증가
-            double distanceKm = 0.5 * iteration;
+            if (distanceKm > MAX_DETOUR_KM + 1e-6) {
+                log.error("❌ detour가 MAX_DETOUR_KM를 초과 - 우회 포기");
+                break;
+            }
 
             // 4. passList 생성 (최대 5개 경유지)
             String passList = GeoUtils.generatePassList(
@@ -155,7 +163,6 @@ public class TmapRouteService {
             );
 
             log.info("생성된 passList: {}", passList);
-
             if (passList == null || passList.isEmpty()) {
                 log.warn("passList 생성 실패");
                 break;
@@ -184,7 +191,7 @@ public class TmapRouteService {
             }
         }
 
-        log.error("❌ 모든 우회 시도 실패 ({}회) - 위험 경로 반환", MAX_BYPASS_ATTEMPTS);
+        log.error("❌ 모든 우회 시도 실패 ({}회) - 위험 경로 반환", MAX_DETOUR_KM / DETOUR_STEP_KM);
         return originalRoute;
     }
 
