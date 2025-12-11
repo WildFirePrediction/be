@@ -2,6 +2,7 @@ package com.capstone25.WildFirePrediction.service;
 
 import com.capstone25.WildFirePrediction.domain.Earthquake;
 import com.capstone25.WildFirePrediction.domain.WildFire;
+import com.capstone25.WildFirePrediction.dto.response.DisasterInfoResponse;
 import com.capstone25.WildFirePrediction.dto.response.EarthquakeApiResponse;
 import com.capstone25.WildFirePrediction.dto.response.WildFireApiResponse;
 import com.capstone25.WildFirePrediction.repository.EarthquakeRepository;
@@ -209,22 +210,31 @@ public class DisasterInfoService {
     }
 
     // 저장된 모든 산불 재난정보 조회
-    public String getAllWildfires() {
+    public DisasterInfoResponse.WildfireListDto getAllWildfires() {
         log.info("저장된 모든 산불 재난정보 조회 시작");
 
-        try {
-            List<WildFire> wildFires = wildFireRepository.findAll();
-            log.info("총 {}건 조회됨", wildFires.size());
+        List<WildFire> entities = wildFireRepository.findAll();
+        log.info("총 {}건 조회됨", entities.size());
 
-            // JSON으로 변환해서 리턴
-            objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
+        List<DisasterInfoResponse.WildfireDto> items = entities.stream()
+                .map(w -> DisasterInfoResponse.WildfireDto.builder()
+                        .id(w.getId())
+                        .frstfrInfoId(w.getFrstfrInfoId())
+                        .ignitionDateTime(w.getIgnitionDateTime())
+                        .address(w.getAddress())
+                        .x(w.getX())
+                        .y(w.getY())
+                        .sidoCode(w.getSidoCode())
+                        .sigunguCode(w.getSigunguCode())
+                        .damageArea(w.getDamageArea())
+                        .damageAmount(w.getDamageAmount())
+                        .maasObtainedAt(w.getMaasObtainedAt())
+                        .build())
+                .toList();
 
-            return objectMapper.writeValueAsString(wildFires);
-
-        } catch (Exception e) {
-            log.error("산불 재난정보 조회 실패", e);
-            return "{ \"error\": \"" + e.getMessage() + "\" }";
-        }
+        return DisasterInfoResponse.WildfireListDto.builder()
+                .wildfires(items)
+                .build();
     }
 
 
@@ -256,82 +266,74 @@ public class DisasterInfoService {
     // 지진 수집 및 저장
     @Transactional
     public String loadAndSaveRecentEarthquakesKoreaOnly() {
-        log.info("[지진] 동기화 시작 - 최신 1~11 페이지, 한국 영역만");
+        log.info("[지진] 동기화 시작 - 11페이지, 한국 영역만");
 
         try {
-            int maxPage = 11;
+            int targetPage = 11;
             int savedCount = 0;
             int skippedCount = 0;
-            int totalCountFromApi = 0;
 
-            // 1페이지 먼저 호출해서 totalCount 확인 (전체 통계 용)
-            EarthquakeApiResponse firstPage = disasterInfoApiService.fetchEarthquakePage(1);
-            totalCountFromApi = firstPage.getTotalCount();
+            // 11페이지 호출
+            EarthquakeApiResponse page = disasterInfoApiService.fetchEarthquakePage(targetPage);
+            int totalCountFromApi = page.getTotalCount(); // 전체 개수는 참고용
 
-            // 첫 페이지의 ERQK_NO들로 기존 DB 확인
-            Set<String> firstNos = new HashSet<>();
-            if (firstPage.getBody() != null) {
-                firstPage.getBody().forEach(d -> firstNos.add(d.getEarthquakeNo()));
+            if (page.getBody() == null || page.getBody().isEmpty()) {
+                log.info("[지진] 페이지 {} 데이터 없음", targetPage);
+                return buildEqResultJson(totalCountFromApi, 0, 0);
             }
-            Set<String> existingNos = earthquakeRepository.findExistingNos(firstNos);
-            log.info("[지진] 첫 페이지 기준 DB 기존 건수: {}", existingNos.size());
 
-            for (int pageNo = 1; pageNo <= maxPage; pageNo++) {
-                EarthquakeApiResponse page = (pageNo == 1)
-                        ? firstPage
-                        : disasterInfoApiService.fetchEarthquakePage(pageNo);
+            // 이번 페이지의 ERQK_NO들로 기존 DB 확인
+            Set<String> pageNos = new HashSet<>();
+            page.getBody().forEach(d -> {
+                if (d.getEarthquakeNo() != null) {
+                    pageNos.add(d.getEarthquakeNo());
+                }
+            });
+            Set<String> existingNos = earthquakeRepository.findExistingNos(pageNos);
+            log.info("[지진] 페이지 {} 기준 DB 기존 건수: {}", targetPage, existingNos.size());
 
-                if (page.getBody() == null || page.getBody().isEmpty()) {
-                    log.info("[지진] 페이지 {} 데이터 없음", pageNo);
+            List<Earthquake> toSave = new ArrayList<>();
+
+            for (EarthquakeApiResponse.EarthquakeData data : page.getBody()) {
+                String eqNo = data.getEarthquakeNo();
+                if (eqNo == null || existingNos.contains(eqNo)) {
+                    skippedCount++;
                     continue;
                 }
 
-                List<Earthquake> toSave = new ArrayList<>();
-
-                for (EarthquakeApiResponse.EarthquakeData data : page.getBody()) {
-                    String eqNo = data.getEarthquakeNo();
-                    if (eqNo == null || existingNos.contains(eqNo)) {
-                        skippedCount++;
-                        continue;
-                    }
-
-                    // 좌표 파싱
-                    Double lat = parseDoubleOrNull(data.getLatitude());
-                    Double lon = parseDoubleOrNull(data.getLongitude());
-                    if (lat == null || lon == null) {
-                        skippedCount++;
-                        continue;
-                    }
-
-                    // 한국 영역만
-                    if (!isKorea(lat, lon)) {
-                        skippedCount++;
-                        continue;
-                    }
-
-                    try {
-                        Earthquake entity = convertToEarthquakeEntity(data, lat, lon);
-                        toSave.add(entity);
-                        existingNos.add(eqNo);
-                    } catch (Exception e) {
-                        log.error("[지진] 변환 실패 - eqNo={}", eqNo, e);
-                        skippedCount++;
-                    }
+                // 좌표 파싱
+                Double lat = parseDoubleOrNull(data.getLatitude());
+                Double lon = parseDoubleOrNull(data.getLongitude());
+                if (lat == null || lon == null) {
+                    skippedCount++;
+                    continue;
                 }
 
-                if (!toSave.isEmpty()) {
-                    earthquakeRepository.saveAll(toSave);
-                    savedCount += toSave.size();
+                // 한국 영역만
+                if (!isKorea(lat, lon)) {
+                    skippedCount++;
+                    continue;
                 }
 
-                log.info("[지진] 페이지 {} 저장: {}건 (누적 저장: {}, 누적 스킵: {})",
-                        pageNo, toSave.size(), savedCount, skippedCount);
+                try {
+                    Earthquake entity = convertToEarthquakeEntity(data, lat, lon);
+                    toSave.add(entity);
+                } catch (Exception e) {
+                    log.error("[지진] 변환 실패 - eqNo={}", eqNo, e);
+                    skippedCount++;
+                }
             }
 
+            if (!toSave.isEmpty()) {
+                earthquakeRepository.saveAll(toSave);
+                savedCount = toSave.size();
+            }
+
+            log.info("[지진] 페이지 {} 저장 완료 - 저장: {}, 스킵: {}", targetPage, savedCount, skippedCount);
             return buildEqResultJson(totalCountFromApi, savedCount, skippedCount);
 
         } catch (Exception e) {
-            log.error("[지진] 동기화 실패", e);
+            log.error("[지진] 동기화 실패 (11페이지)", e);
             return "{ \"error\": \"" + e.getMessage() + "\" }";
         }
     }
@@ -388,17 +390,36 @@ public class DisasterInfoService {
     }
 
     // 저장된 모든 지진 재난정보 조회
-    public String getAllEarthquakes() {
+    @Transactional(readOnly = true)
+    public DisasterInfoResponse.EarthquakeListDto getAllEarthquakes() {
         log.info("저장된 모든 지진 재난정보 조회 시작");
-        try {
-            List<Earthquake> eqs = earthquakeRepository.findAll();
-            log.info("총 {}건 조회됨", eqs.size());
-            objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
-            return objectMapper.writeValueAsString(eqs);
-        } catch (Exception e) {
-            log.error("지진 재난정보 조회 실패", e);
-            return "{ \"error\": \"" + e.getMessage() + "\" }";
-        }
+
+        List<Earthquake> eqs = earthquakeRepository.findAll();
+        log.info("총 {}건 조회됨", eqs.size());
+
+        List<DisasterInfoResponse.EarthquakeDto> items = eqs.stream()
+                .map(e -> DisasterInfoResponse.EarthquakeDto.builder()
+                        .id(e.getId())
+                        .earthquakeNo(e.getEarthquakeNo())
+                        .branchNo(e.getBranchNo())
+                        .disasterTypeKind(e.getDisasterTypeKind())
+                        .occurrenceTime(e.getOccurrenceTime())
+                        .latitude(e.getLatitude())
+                        .longitude(e.getLongitude())
+                        .position(e.getPosition())
+                        .scale(e.getScale())
+                        .depthKm(e.getDepthKm())
+                        .notificationLevel(e.getNotificationLevel())
+                        .refNo(e.getRefNo())
+                        .refMatter(e.getRefMatter())
+                        .modificationMatter(e.getModificationMatter())
+                        .maasObtainedAt(e.getMaasObtainedAt())
+                        .build())
+                .toList();
+
+        return DisasterInfoResponse.EarthquakeListDto.builder()
+                .earthquakes(items)
+                .build();
     }
 
 }
