@@ -4,6 +4,7 @@ import com.capstone25.WildFirePrediction.global.ApiResponse;
 import com.capstone25.WildFirePrediction.service.DisasterInfoService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -25,6 +26,25 @@ public class DisasterInfoController {
     ) {
         String rawJson = disasterInfoService.loadRawWildfireMessages(date);
         return ApiResponse.onSuccess(rawJson);
+    }
+
+    @PostMapping("/wildfire/load-and-save")
+    @Operation(
+            summary = "산불 데이터 수집 및 저장 (서버용)",
+            description = "입력한 시작일자(yyyyMMdd)를 startDt로 사용해 공공 산불 API를 호출하고, " +
+                    "FRSTFR_INFO_ID 기준으로 중복을 제외한 데이터만 DB에 저장합니다."
+    )
+    public ApiResponse<String> loadAndSaveWildfires(@RequestParam String date) {
+        String resultJson = disasterInfoService.loadAndSaveWildfiresByDate(date);
+        return ApiResponse.onSuccess(resultJson);
+    }
+
+    @GetMapping("/wildfire")
+    @Operation(summary = "저장된 산불 재난정보 조회",
+            description = "DB에 저장된 산불 재난정보를 전체 조회합니다.")
+    public ApiResponse<String> getAllWildfires() {
+        String resultJson = disasterInfoService.getAllWildfires();
+        return ApiResponse.onSuccess(resultJson);
     }
 
     @PostMapping("/earthquake/load-raw")
