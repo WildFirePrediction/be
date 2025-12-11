@@ -6,7 +6,6 @@ import com.capstone25.WildFirePrediction.global.code.status.ErrorStatus;
 import com.capstone25.WildFirePrediction.global.exception.handler.ExceptionHandler;
 import com.capstone25.WildFirePrediction.repository.WeatherWarningRepository;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.List;
@@ -91,13 +90,12 @@ public class WeatherWarningService {
     }
 
     private WeatherWarning convertToEntity(WeatherWarningApiResponse.WeatherWarningData data) {
-        LocalDateTime presentationTime = LocalDateTime.parse(
-                data.getPresentationTimeStr(), PRSNTN_TM_FORMATTER);
-
         return WeatherWarning.builder()
-                .branch(data.getBranch())
-                .presentationTime(presentationTime)
-                .presentationSerial(data.getPresentationSerial())
+                .id(WeatherWarning.WeatherWarningId.builder()
+                        .branch(data.getBranch().toString())           // Integer → String
+                        .presentationTime(data.getPresentationTimeStr()) // String 그대로
+                        .presentationSerial(data.getPresentationSerial().toString()) // Long → String
+                        .build())
                 .forecasterName(data.getForecasterName())
                 .warningPresentationCode(data.getWarningPresentationCode())
                 .title(data.getTitle())
@@ -120,19 +118,27 @@ public class WeatherWarningService {
             return 0;
         }
 
-        // 1. DB 기존 키들 조회 (1번 쿼리)
-        List<String> keysToCheck = apiResponse.getBody().stream()
-                .map(data -> data.getPresentationTimeStr() + "_" + data.getPresentationSerial())
+        // 1. DB 기존 키들 조회 (1번 쿼리) (3중키)
+        List<WeatherWarning.WeatherWarningId> idsToCheck = apiResponse.getBody().stream()
+                .map(data -> WeatherWarning.WeatherWarningId.builder()
+                        .branch(data.getBranch().toString())
+                        .presentationTime(data.getPresentationTimeStr())
+                        .presentationSerial(data.getPresentationSerial().toString())
+                        .build())
                 .toList();
 
-        Set<String> existingKeys = new HashSet<>(
-                weatherWarningRepository.findExistingKeys(keysToCheck)
-        );
+        List<WeatherWarning.WeatherWarningId> existingIds = weatherWarningRepository.findExistingIds(idsToCheck);
+        Set<WeatherWarning.WeatherWarningId> existingIdSet = new HashSet<>(existingIds);
 
         int savedCount = 0;
         for (WeatherWarningApiResponse.WeatherWarningData data : apiResponse.getBody()) {
-            String key = data.getPresentationTimeStr() + "_" + data.getPresentationSerial();
-            if (existingKeys.contains(key)) {
+            WeatherWarning.WeatherWarningId id = WeatherWarning.WeatherWarningId.builder()
+                    .branch(data.getBranch().toString())
+                    .presentationTime(data.getPresentationTimeStr())
+                    .presentationSerial(data.getPresentationSerial().toString())
+                    .build();
+
+            if (existingIdSet.contains(id)) {
                 continue;
             }
 
