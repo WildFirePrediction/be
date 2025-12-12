@@ -24,6 +24,25 @@ public class RegionResponse {
     public static class RegionDisasterDto {
         private RegionResponseDto region;
         private List<EmergencyMessage> emergencyMessages;
-        private List<WeatherWarning> weatherWarnings;
+        private List<WeatherWarningDto> weatherWarnings;
+    }
+
+    @Data
+    @Builder
+    public static class WeatherWarningDto {
+        private String branch;
+        private String presentationTime;
+        private String presentationSerial;
+        private String forecasterName;
+        private String warningPresentationCode;
+        private String title;
+        private String relevantZone;
+        private String effectiveTimeText;
+        private String content;
+        private String effectiveStatusTimeRaw;  // 포맷팅된 값
+        private String effectiveStatusContent;
+        private String reservedWarningStatus;
+        private String referenceMatter;
+        private String maasObtainedAtRaw;  // 포맷팅된 값
     }
 }

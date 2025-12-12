@@ -95,10 +95,15 @@ public class RegionService {
         List<WeatherWarning> warnings = weatherWarningRepository.findAllByIds(warningIds);
         warnings.sort((a, b) -> b.getId().getPresentationTime().compareTo(a.getId().getPresentationTime()));
 
+        // WeatherWarning -> DTO 변환
+        List<RegionResponse.WeatherWarningDto> warningDtos = warnings.stream()
+                .map(this::toWeatherWarningDto)
+                .toList();
+
         return RegionResponse.RegionDisasterDto.builder()
                 .region(toRegionDto(region))
                 .emergencyMessages(emergencies)
-                .weatherWarnings(warnings)
+                .weatherWarnings(warningDtos)
                 .build();
     }
 
@@ -119,5 +124,32 @@ public class RegionService {
                 region.getSigungu(),
                 region.getEupmyeondong()
         );
+    }
+
+    private RegionResponse.WeatherWarningDto toWeatherWarningDto(WeatherWarning warning) {
+        return RegionResponse.WeatherWarningDto.builder()
+                .branch(warning.getId().getBranch())
+                .presentationTime(warning.getId().getPresentationTime())
+                .presentationSerial(warning.getId().getPresentationSerial())
+                .forecasterName(warning.getForecasterName())
+                .warningPresentationCode(warning.getWarningPresentationCode())
+                .title(warning.getTitle())
+                .relevantZone(warning.getRelevantZone())
+                .effectiveTimeText(warning.getEffectiveTimeText())
+                .content(warning.getContent())
+                .effectiveStatusTimeRaw(formatDateTime(warning.getEffectiveStatusTimeRaw()))
+                .effectiveStatusContent(warning.getEffectiveStatusContent())
+                .reservedWarningStatus(warning.getReservedWarningStatus())
+                .referenceMatter(warning.getReferenceMatter())
+                .maasObtainedAtRaw(formatDateTime(warning.getMaasObtainedAtRaw()))
+                .build();
+    }
+
+    private String formatDateTime(String dateTimeStr) {
+        if (dateTimeStr == null || dateTimeStr.isEmpty()) {
+            return dateTimeStr;
+        }
+        // "2025/12/12 11:04:53.000000000" -> "2025/12/12 11:04:53"
+        return dateTimeStr.replaceAll("\\.\\d{9}$", "");
     }
 }
