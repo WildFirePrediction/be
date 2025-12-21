@@ -1,4 +1,5 @@
 # 안전나침반 (WildFirePrediction) - BE
+<img width="500" height="1184" alt="타이틀" src="https://github.com/user-attachments/assets/eafc315a-ae6b-47b0-9804-d03a2cce1071" />
 
 **안전나침반**(WildFirePrediction) 프로젝트의 백엔드 레포지토리입니다.
 
@@ -32,21 +33,21 @@ src/main/java/com/capstone25/WildFirePrediction
 
 ## ✨ 주요 기능
 
-### 1. 산불 예측 및 모니터링 (`FireController`, `AIPredictionController`)
+### 1. 산불 예측 및 모니터링
 - **실시간 산불 예측**: AI 모델로부터 산불 확산 예측 데이터를 수신하고 처리합니다.
 - **SSE 스트리밍**: 클라이언트에게 실시간으로 산불 예측 및 종료 이벤트를 전송합니다.
 - **진행 중인 화재 조회**: 현재 진행 중인 산불 예측 정보를 조회합니다.
 
-### 2. 재난 정보 수집 (`DisasterInfoController`, `EmergencyMessageController`, `WeatherWarningController`)
+### 2. 재난 정보 수집
 - **산불/지진 정보**: 공공데이터포털 API를 통해 산불 및 지진 정보를 수집하고 저장합니다.
 - **재난문자**: 매일 자동으로 재난문자를 수집하고 지역별로 매핑합니다.
 - **기상특보**: 기상청 특보 통보문을 수집하고 지역별로 매핑합니다.
 
-### 3. 지역 및 사용자 설정 (`RegionController`, `UserPreferenceController`)
+### 3. 지역 및 사용자 설정
 - **지역 정보 관리**: 행정구역(시/도, 시군구, 읍면동) 정보를 관리하고 검색 기능을 제공합니다.
 - **사용자 선호 지역**: 기기 UUID를 기반으로 사용자의 관심 지역을 설정하고 조회합니다.
 
-### 4. 대피소 및 경로 안내 (`ShelterController`, `RouteController`)
+### 4. 대피소 및 경로 안내
 - **대피소 조회**: 현재 위치를 기준으로 가까운 대피소를 검색합니다 (동적 반경 검색).
 - **안전 경로 안내**: Tmap API를 활용하여 출발지에서 목적지까지의 보행자 안전 경로를 제공합니다.
 
