@@ -1,2 +1,80 @@
-# WildFirePrediction - BE
-Backend Repository - SpringBoot
+# 안전나침반 (WildFirePrediction) - BE
+
+**안전나침반**(WildFirePrediction) 프로젝트의 백엔드 레포지토리입니다.
+
+Spring Boot를 기반으로 하며, 산불 예측, 재난 정보 수집, 대피소 조회, 경로 안내 등의 기능을 제공합니다.
+
+## 🛠 기술 스택
+
+- **Language**: Java 21
+- **Framework**: Spring Boot 3.5.7
+- **Build Tool**: Gradle
+- **Deployment**: AWS EC2 (t3.micro)
+- **Database**: AWS RDS MySQL 8.0.43 (Hibernate Spatial)
+- **CI/CD**: GitHub Actions -> Docker Hub -> AWS EC2
+- **API Documentation**: Swagger (SpringDoc OpenAPI)
+- **External APIs**: 공공데이터포털 (산불, 지진, 재난문자, 기상특보), Tmap API (보행자 경로)
+
+## 📂 프로젝트 구조
+
+```
+src/main/java/com/capstone25/WildFirePrediction
+├── config          # 설정 파일 (Swagger, WebClient 등)
+├── controller      # API 엔드포인트 정의
+├── domain          # JPA 엔티티 클래스
+├── dto             # 데이터 전송 객체 (Request/Response)
+├── global          # 전역 예외 처리 및 공통 응답 포맷
+├── repository      # 데이터베이스 접근 계층
+├── service         # 비즈니스 로직 구현
+├── sse             # Server-Sent Events 관련 로직
+└── util            # 유틸리티 클래스
+```
+
+## ✨ 주요 기능
+
+### 1. 산불 예측 및 모니터링 (`FireController`, `AIPredictionController`)
+- **실시간 산불 예측**: AI 모델로부터 산불 확산 예측 데이터를 수신하고 처리합니다.
+- **SSE 스트리밍**: 클라이언트에게 실시간으로 산불 예측 및 종료 이벤트를 전송합니다.
+- **진행 중인 화재 조회**: 현재 진행 중인 산불 예측 정보를 조회합니다.
+
+### 2. 재난 정보 수집 (`DisasterInfoController`, `EmergencyMessageController`, `WeatherWarningController`)
+- **산불/지진 정보**: 공공데이터포털 API를 통해 산불 및 지진 정보를 수집하고 저장합니다.
+- **재난문자**: 매일 자동으로 재난문자를 수집하고 지역별로 매핑합니다.
+- **기상특보**: 기상청 특보 통보문을 수집하고 지역별로 매핑합니다.
+
+### 3. 지역 및 사용자 설정 (`RegionController`, `UserPreferenceController`)
+- **지역 정보 관리**: 행정구역(시/도, 시군구, 읍면동) 정보를 관리하고 검색 기능을 제공합니다.
+- **사용자 선호 지역**: 기기 UUID를 기반으로 사용자의 관심 지역을 설정하고 조회합니다.
+
+### 4. 대피소 및 경로 안내 (`ShelterController`, `RouteController`)
+- **대피소 조회**: 현재 위치를 기준으로 가까운 대피소를 검색합니다 (동적 반경 검색).
+- **안전 경로 안내**: Tmap API를 활용하여 출발지에서 목적지까지의 보행자 안전 경로를 제공합니다.
+
+## ⚙️ 기술적 특징
+
+### 1. 대용량 데이터 처리 최적화
+- **재난문자/기상특보 수집**:
+    - 공공데이터포털 API의 페이징 처리를 통해 대량의 데이터를 안정적으로 수집합니다.
+    - `Set` 자료구조를 활용하여 DB 조회 횟수를 최소화하고 중복 데이터를 효율적으로 필터링합니다.
+    - 스케줄러(`@Scheduled`)를 통해 주기적으로 최신 데이터를 자동 동기화합니다.
+- **대피소 검색 최적화**:
+    - **Spatial Indexing**: MySQL의 공간 인덱스(Spatial Index)를 활용하여 위치 기반 검색 성능을 극대화했습니다.
+    - **동적 반경 검색**: 3km → 5km → 7km → 10km 순으로 반경을 넓혀가며 검색하여, 데이터가 없는 경우에도 유연하게 대처하고 불필요한 연산을 줄입니다.
+    - **하이브리드 검증**: `Bounding Box`로 1차 필터링 후 정밀 거리 계산을 수행하여 쿼리 속도를 개선했습니다.
+
+### 2. 실시간 데이터 스트리밍 (SSE)
+- **Server-Sent Events (SSE)**:
+    - AI 모델의 예측 결과를 클라이언트에게 실시간으로 전달하기 위해 SSE를 도입했습니다.
+    - 트랜잭션 커밋 후(`afterCommit`) 이벤트를 발행하여 데이터 일관성을 보장합니다.
+    - 연결 끊김 시 자동 재연결 및 타임아웃 처리를 통해 안정적인 스트리밍을 지원합니다.
+
+### 3. 지능형 경로 탐색 알고리즘
+- **안전 경로 안내**:
+    - Tmap API로 보행자 경로를 조회한 후, AI가 예측한 산불 확산 영역(위험 셀)과의 충돌 여부를 분석합니다.
+    - **충돌 감지**: 경로상의 좌표와 위험 셀 간의 거리를 계산하여 위험 구간을 식별합니다.
+    - **우회 경로 생성**: 위험 구간이 감지되면 자동으로 우회 경로를 탐색하고, 반복적인 시뮬레이션을 통해 가장 안전한 경로를 제안합니다.
+
+### 4. 확장성 및 유지보수성 고려
+- **모듈화된 설계**: 기능별로 Controller, Service, Repository를 명확히 분리하여 코드의 가독성과 재사용성을 높였습니다.
+- **표준화된 응답 포맷**: `ApiResponse` 클래스를 통해 성공/실패 응답을 통일된 형식으로 제공하여 프론트엔드와의 협업 효율을 높였습니다.
+- **Swagger 문서화**: API 명세를 자동으로 생성하고 테스트할 수 있는 환경을 구축했습니다.
